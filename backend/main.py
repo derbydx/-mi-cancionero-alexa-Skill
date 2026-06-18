@@ -1,7 +1,12 @@
 import logging
+import os
+import sys
 
 from dotenv import load_dotenv
 load_dotenv()
+
+# Ensure backend/ directory is on the path for intra-package imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
