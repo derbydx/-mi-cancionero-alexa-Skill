@@ -641,10 +641,50 @@ async def health():
 **Files:** ninguno (configuración cloud)
 
 - [ ] **Step 1: Create Custom Skill on developer.amazon.com**
+  - Skill name: **Mi Cancionero**
+  - Model: Custom
+  - Hosting: Provision your own
 - [ ] **Step 2: Paste interaction model in JSON Editor**
+
+```json
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "mi cancionero",
+      "intents": [
+        {
+          "name": "BuscarMusicaIntent",
+          "slots": [
+            {"name": "artista", "type": "AMAZON.Artist"},
+            {"name": "cancion", "type": "AMAZON.Song"}
+          ],
+          "samples": [
+            "pon musica de {artista}",
+            "busca {cancion}",
+            "quiero escuchar {cancion}",
+            "pon {cancion} de {artista}",
+            "reproduce {artista}",
+            "toca {cancion}",
+            "musica de {artista}",
+            "pon a {artista}"
+          ]
+        },
+        {"name": "AMAZON.PauseIntent", "samples": ["pausa", "detente"]},
+        {"name": "AMAZON.ResumeIntent", "samples": ["reanuda", "continua", "sigue"]},
+        {"name": "AMAZON.NextIntent", "samples": ["siguiente", "adelante", "saltar", "otra cancion"]},
+        {"name": "AMAZON.StopIntent", "samples": ["para", "detener"]},
+        {"name": "AMAZON.LoopOnIntent", "samples": ["repite esta cancion", "ciclo", "loop"]},
+        {"name": "AMAZON.LoopOffIntent", "samples": ["deja de repetir", "quita loop"]},
+        {"name": "AMAZON.StartOverIntent", "samples": ["empieza de nuevo", "reproduce desde el inicio"]}
+      ]
+    }
+  }
+}
+```
+
 - [ ] **Step 3: Save Model + Build Model**
 - [ ] **Step 4: Set endpoint to `https://tudominio.com/alexa`**
-- [ ] **Step 5: Enable Audio Player interface**
+- [ ] **Step 5: Enable Audio Player interface (Build → Interfaces)**
 - [ ] **Step 6: Update .env for production**
 
 ---
