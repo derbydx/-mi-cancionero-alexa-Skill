@@ -1,33 +1,71 @@
-import httpx
+import asyncio
+import logging
+
 from fastapi import Request
 from fastapi.responses import StreamingResponse
 
 from music_service import get_streaming_url
 
+logger = logging.getLogger(__name__)
 
-async def _stream_from_url(url: str, range_header: str | None = None):
-    request_headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    }
-    if range_header:
-        request_headers["Range"] = range_header
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        async with client.stream("GET", url, headers=request_headers) as response:
-            async for chunk in response.aiter_bytes(chunk_size=65536):
+async def _ffmpeg_stream(audio_url: str):
+    proc = await asyncio.create_subprocess_exec(
+        "ffmpeg",
+        "-i", audio_url,
+        "-c:a", "libmp3lame",
+        "-b:a", "128k",
+        "-f", "mp3",
+        "-",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+
+    async def read_output():
+        try:
+            while True:
+                chunk = await proc.stdout.read(65536)
+                if not chunk:
+                    break
                 yield chunk
+        except asyncio.CancelledError:
+            proc.kill()
+            raise
+        finally:
+            if proc.returncode is None:
+                proc.kill()
+            await proc.wait()
+
+    return read_output(), proc
 
 
 async def stream_audio(video_id: str, request: Request) -> StreamingResponse:
-    range_header = request.headers.get("range")
     audio_url = await get_streaming_url(video_id)
-    status_code = 206 if range_header else 200
+    logger.info(f"Iniciando ffmpeg para {video_id}")
+
+    stream_gen, proc = await _ffmpeg_stream(audio_url)
+
+    async def _stream():
+        stderr_task = None
+
+        async def _drain_stderr():
+            remaining = await proc.stderr.read()
+            if remaining:
+                logger.debug(f"ffmpeg stderr: {remaining.decode(errors='replace')[:200]}")
+
+        try:
+            async for chunk in stream_gen:
+                yield chunk
+        except Exception:
+            logger.exception("Error en stream de audio")
+            proc.kill()
+        finally:
+            stderr_task = asyncio.create_task(_drain_stderr())
+
     return StreamingResponse(
-        _stream_from_url(audio_url, range_header),
-        status_code=status_code,
-        media_type="audio/mp4",
+        _stream(),
+        media_type="audio/mpeg",
         headers={
-            "Accept-Ranges": "bytes",
             "Cache-Control": "no-cache",
         },
     )

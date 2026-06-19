@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from pathlib import Path
 
 from ytmusicapi import YTMusic
@@ -53,7 +54,7 @@ def get_watch_playlist(video_id: str, limit: int = 50) -> list[dict]:
 
 async def get_streaming_url(video_id: str) -> str:
     proc = await asyncio.create_subprocess_exec(
-        "yt-dlp",
+        sys.executable, "-m", "yt_dlp",
         "-g",
         "-f", "bestaudio[ext=m4a]/bestaudio",
         f"https://www.youtube.com/watch?v={video_id}",

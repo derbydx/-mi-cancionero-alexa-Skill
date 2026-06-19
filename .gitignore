@@ -1,4 +1,9 @@
+# Environment
 .env
+.env.local
+headers_auth.json
+
+# Python
 __pycache__/
 *.pyc
 *.pyo
@@ -7,4 +12,19 @@ dist/
 build/
 .venv/
 venv/
-headers_auth.json
+
+# Audio downloads
+*.m4a
+*.mp3
+*.flac
+
+# Logs
+*.log
+uvicorn_err.txt
+uvicorn_out.txt
+
+# Cloudflare tunnel (contains tunnel ID)
+cloudflared-config.yml
+
+# Agent working files
+docs/superpowers/

@@ -1,0 +1,7 @@
+{
+    "accept": "*/*",
+    "cookie": "copiar cookie de music.youtube.com desde DevTools",
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "x-goog-authuser": "1",
+    "authorization": "SAPISIDHASH <valor>"
+}

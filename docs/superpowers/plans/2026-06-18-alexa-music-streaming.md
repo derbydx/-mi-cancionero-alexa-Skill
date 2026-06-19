@@ -656,7 +656,7 @@ async def health():
           "name": "BuscarMusicaIntent",
           "slots": [
             {"name": "artista", "type": "AMAZON.Artist"},
-            {"name": "cancion", "type": "AMAZON.Song"}
+            {"name": "cancion", "type": "CANCION"}
           ],
           "samples": [
             "pon musica de {artista}",
@@ -669,13 +669,25 @@ async def health():
             "pon a {artista}"
           ]
         },
-        {"name": "AMAZON.PauseIntent", "samples": ["pausa", "detente"]},
-        {"name": "AMAZON.ResumeIntent", "samples": ["reanuda", "continua", "sigue"]},
-        {"name": "AMAZON.NextIntent", "samples": ["siguiente", "adelante", "saltar", "otra cancion"]},
-        {"name": "AMAZON.StopIntent", "samples": ["para", "detener"]},
-        {"name": "AMAZON.LoopOnIntent", "samples": ["repite esta cancion", "ciclo", "loop"]},
-        {"name": "AMAZON.LoopOffIntent", "samples": ["deja de repetir", "quita loop"]},
-        {"name": "AMAZON.StartOverIntent", "samples": ["empieza de nuevo", "reproduce desde el inicio"]}
+        {"name": "AMAZON.PauseIntent"},
+        {"name": "AMAZON.ResumeIntent"},
+        {"name": "AMAZON.NextIntent"},
+        {"name": "AMAZON.StopIntent"},
+        {"name": "AMAZON.LoopOnIntent"},
+        {"name": "AMAZON.LoopOffIntent"},
+        {"name": "AMAZON.StartOverIntent"}
+      ],
+      "types": [
+        {
+          "name": "CANCION",
+          "values": [
+            {"name": {"value": "tití me preguntó"}},
+            {"name": {"value": "despacito"}},
+            {"name": {"value": "bohemian rhapsody"}},
+            {"name": {"value": "shape of you"}},
+            {"name": {"value": "blinding lights"}}
+          ]
+        }
       ]
     }
   }
@@ -683,7 +695,7 @@ async def health():
 ```
 
 - [ ] **Step 3: Save Model + Build Model**
-- [ ] **Step 4: Set endpoint to `https://tudominio.com/alexa`**
+- [ ] **Step 4: Set endpoint to `https://mimusica.xyz/alexa`**
 - [ ] **Step 5: Enable Audio Player interface (Build → Interfaces)**
 - [ ] **Step 6: Update .env for production**
 
