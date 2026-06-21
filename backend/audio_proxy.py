@@ -12,6 +12,9 @@ logger = logging.getLogger(__name__)
 async def _ffmpeg_stream(audio_url: str):
     proc = await asyncio.create_subprocess_exec(
         "ffmpeg",
+        "-reconnect", "1",
+        "-reconnect_streamed", "1",
+        "-reconnect_delay_max", "5",
         "-i", audio_url,
         "-c:a", "libmp3lame",
         "-b:a", "128k",
@@ -20,6 +23,14 @@ async def _ffmpeg_stream(audio_url: str):
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
+
+    async def _drain_stderr():
+        while True:
+            chunk = await proc.stderr.read(65536)
+            if not chunk:
+                break
+
+    stderr_drainer = asyncio.create_task(_drain_stderr())
 
     async def read_output():
         try:
@@ -32,35 +43,48 @@ async def _ffmpeg_stream(audio_url: str):
             proc.kill()
             raise
         finally:
+            stderr_drainer.cancel()
             if proc.returncode is None:
                 proc.kill()
-            await proc.wait()
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=5)
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
 
     return read_output(), proc
 
 
 async def stream_audio(video_id: str, request: Request) -> StreamingResponse:
-    audio_url = await get_streaming_url(video_id)
+    logger.info(f"Resolviendo URL para {video_id}")
+    try:
+        audio_url = await asyncio.wait_for(get_streaming_url(video_id), timeout=30)
+    except asyncio.TimeoutError:
+        logger.error(f"Timeout obteniendo URL para {video_id}")
+        return StreamingResponse(
+            content="Timeout obteniendo el flujo de audio",
+            status_code=504,
+            media_type="text/plain",
+        )
+
     logger.info(f"Iniciando ffmpeg para {video_id}")
 
-    stream_gen, proc = await _ffmpeg_stream(audio_url)
+    try:
+        stream_gen, proc = await asyncio.wait_for(_ffmpeg_stream(audio_url), timeout=30)
+    except asyncio.TimeoutError:
+        logger.error(f"Timeout iniciando ffmpeg para {video_id}")
+        return StreamingResponse(
+            content="Timeout iniciando conversion de audio",
+            status_code=504,
+            media_type="text/plain",
+        )
 
     async def _stream():
-        stderr_task = None
-
-        async def _drain_stderr():
-            remaining = await proc.stderr.read()
-            if remaining:
-                logger.debug(f"ffmpeg stderr: {remaining.decode(errors='replace')[:200]}")
-
         try:
             async for chunk in stream_gen:
                 yield chunk
         except Exception:
             logger.exception("Error en stream de audio")
-            proc.kill()
-        finally:
-            stderr_task = asyncio.create_task(_drain_stderr())
 
     return StreamingResponse(
         _stream(),
