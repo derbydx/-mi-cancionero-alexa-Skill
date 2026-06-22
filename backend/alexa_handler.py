@@ -90,13 +90,13 @@ def _handle_audio_player(request_type: str, request: dict) -> dict:
     if request_type == "AudioPlayer.PlaybackNearlyFinished":
         current_song = queue_manager.current()
         logger.info(f"PlaybackNearlyFinished token={token} vid={current_song['video_id'] if current_song else 'None'}")
-        song = queue_manager.next()
+        song = queue_manager.peek_next()
         if song is None:
             logger.warning("PlaybackNearlyFinished: queue is empty, stopping")
             return {"version": "1.0", "response": {}}
         new_token = str(uuid.uuid4())
         url = f"{settings.proxy_base_url}/proxy/audio/{song['video_id']}"
-        logger.info(f"PlaybackNearlyFinished: enqueuing {song['video_id']} ({song['title']}) "
+        logger.info(f"PlaybackNearlyFinished: pre-buffering {song['video_id']} ({song['title']}) "
                      f"new_token={new_token} expected_previous={token}")
         return {
             "version": "1.0",
@@ -137,7 +137,13 @@ def _handle_audio_player(request_type: str, request: dict) -> dict:
         current_song = queue_manager.current()
         logger.info(f"PlaybackFinished token={token} "
                      f"vid={current_song['video_id'] if current_song else 'None'}")
-        return {"version": "1.0", "response": {}}
+        song = queue_manager.next()
+        if song is None:
+            logger.warning("PlaybackFinished: queue is empty")
+            return {"version": "1.0", "response": {}}
+        url = f"{settings.proxy_base_url}/proxy/audio/{song['video_id']}"
+        logger.info(f"PlaybackFinished: advancing to {song['video_id']} ({song['title']})")
+        return build_play_directive(url, str(uuid.uuid4()), 0)
 
     elif request_type == "AudioPlayer.PlaybackFailed":
         current_song = queue_manager.current()

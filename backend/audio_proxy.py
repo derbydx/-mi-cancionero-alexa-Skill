@@ -14,15 +14,17 @@ async def _get_duration(video_id: str) -> float | None:
         "--print", "duration",
         f"https://www.youtube.com/watch?v={video_id}",
     ]
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=30)
-        if proc.returncode == 0:
-            return float(stdout.decode().strip())
-    except Exception:
-        pass
+    for attempt in range(2):
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=30)
+            if proc.returncode == 0:
+                return float(stdout.decode().strip())
+        except Exception:
+            pass
+    logger.warning(f"Could not get duration for {video_id}")
     return None
 
 

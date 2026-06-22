@@ -48,6 +48,16 @@ class QueueManager:
             return self._queue[self._index]
         return None
 
+    def peek_next(self) -> dict | None:
+        n = self._index + 1
+        if n < len(self._queue):
+            return self._queue[n]
+        if self._current_video_id:
+            self._refill(self._current_video_id)
+        if n < len(self._queue):
+            return self._queue[n]
+        return None
+
     def next(self) -> dict | None:
         if self._looping and self._current_video_id:
             self._playback_offset = 0
