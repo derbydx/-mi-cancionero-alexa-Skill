@@ -82,4 +82,15 @@ class QueueManager:
         return self._looping
 
 
+    def get_queue(self) -> dict:
+        return {
+            "current_index": self._index,
+            "total": len(self._queue),
+            "looping": self._looping,
+            "current_video_id": self._current_video_id,
+            "current": self.current(),
+            "queue": self._queue,
+        }
+
+
 queue_manager = QueueManager()

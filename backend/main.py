@@ -18,6 +18,7 @@ from ask_sdk_webservice_support.verifier import (
 
 from config import settings
 from alexa_handler import handle_alexa_request
+from queue_manager import queue_manager
 from audio_proxy import stream_audio
 from music_service import init_ytmusic
 
@@ -88,6 +89,11 @@ async def terms():
     path = os.path.join(os.path.dirname(__file__), "static", "terms.html")
     with open(path, encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
+
+
+@app.get("/queue")
+async def queue():
+    return queue_manager.get_queue()
 
 
 @app.get("/health")
