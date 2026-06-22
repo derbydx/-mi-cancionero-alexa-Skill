@@ -1,5 +1,6 @@
 from music_service import search_song, get_watch_playlist
 from config import settings
+from history_manager import record_enqueued
 
 
 class QueueManager:
@@ -17,6 +18,7 @@ class QueueManager:
         self._queue = [song]
         self._index = 0
         self._playback_offset = 0
+        record_enqueued(song["video_id"], song["title"], song["artist"])
         self._refill(song["video_id"])
         return song
 
@@ -37,6 +39,7 @@ class QueueManager:
                 if t["video_id"] not in existing_ids:
                     self._queue.append(t)
                     existing_ids.add(t["video_id"])
+                    record_enqueued(t["video_id"], t.get("title", ""), t.get("artist", ""))
         except Exception:
             pass
 

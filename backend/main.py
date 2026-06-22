@@ -20,7 +20,7 @@ from config import settings
 from alexa_handler import handle_alexa_request
 from queue_manager import queue_manager
 from audio_proxy import stream_audio
-from history_manager import init_db, get_history, record_playback
+from history_manager import init_db, get_history
 from music_service import init_ytmusic
 
 logging.basicConfig(level=logging.INFO)
