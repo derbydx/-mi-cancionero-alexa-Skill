@@ -99,7 +99,7 @@ async def queue_json():
 
 
 @app.get("/history", response_class=HTMLResponse)
-async def history(limit: int = 100):
+async def history(limit: int = 500):
     items = get_history(limit)
     rows = ""
     for i, s in enumerate(items):
