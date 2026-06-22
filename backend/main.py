@@ -83,6 +83,13 @@ async def privacy():
         return HTMLResponse(content=f.read())
 
 
+@app.get("/terms", response_class=HTMLResponse)
+async def terms():
+    path = os.path.join(os.path.dirname(__file__), "static", "terms.html")
+    with open(path, encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
