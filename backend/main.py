@@ -9,7 +9,7 @@ load_dotenv()
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from ask_sdk_webservice_support.verifier import (
     RequestVerifier,
     TimestampVerifier,
@@ -74,6 +74,13 @@ async def alexa_endpoint(request: Request):
 @app.get("/proxy/audio/{video_id}")
 async def proxy_audio(video_id: str, request: Request):
     return await stream_audio(video_id, request)
+
+
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy():
+    path = os.path.join(os.path.dirname(__file__), "static", "privacy.html")
+    with open(path, encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 
 @app.get("/health")
