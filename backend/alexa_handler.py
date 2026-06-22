@@ -19,7 +19,13 @@ def handle_alexa_request(body: dict) -> dict:
         return _handle_intent(intent)
     elif request_type.startswith("AudioPlayer."):
         return _handle_audio_player(request_type, request)
+    elif request_type == "System.ExceptionEncountered":
+        error = request.get("error", {})
+        cause = request.get("cause", {})
+        logger.error(f"System.ExceptionEncountered: error={error} cause={cause} token={request.get('token','')}")
+        return {}
     else:
+        logger.warning(f"Unknown request type: {request_type}")
         return build_speech_response("No entiendo ese comando.")
 
 
@@ -143,7 +149,7 @@ def _handle_audio_player(request_type: str, request: dict) -> dict:
             return {"version": "1.0", "response": {}}
         url = f"{settings.proxy_base_url}/proxy/audio/{song['video_id']}"
         logger.info(f"PlaybackFinished: advancing to {song['video_id']} ({song['title']})")
-        return build_play_directive(url, str(uuid.uuid4()), 0)
+        return build_play_directive_audio(url, str(uuid.uuid4()), 0)
 
     elif request_type == "AudioPlayer.PlaybackFailed":
         current_song = queue_manager.current()
@@ -155,10 +161,30 @@ def _handle_audio_player(request_type: str, request: dict) -> dict:
             return {"version": "1.0", "response": {}}
         url = f"{settings.proxy_base_url}/proxy/audio/{song['video_id']}"
         logger.info(f"PlaybackFailed: skipping to {song['video_id']} ({song['title']})")
-        return build_play_directive(url, str(uuid.uuid4()), 0)
+        return build_play_directive_audio(url, str(uuid.uuid4()), 0)
 
     logger.warning(f"Unknown AudioPlayer event: {request_type}")
     return {"version": "1.0", "response": {}}
+
+
+def build_play_directive_audio(url: str, token: str, offset: int = 0) -> dict:
+    return {
+        "version": "1.0",
+        "response": {
+            "directives": [{
+                "type": "AudioPlayer.Play",
+                "playBehavior": "REPLACE_ALL",
+                "audioItem": {
+                    "stream": {
+                        "url": url,
+                        "token": token,
+                        "expectedPreviousToken": None,
+                        "offsetInMilliseconds": offset,
+                    }
+                },
+            }],
+        },
+    }
 
 
 def build_play_directive(url: str, token: str, offset: int = 0) -> dict:
