@@ -96,14 +96,10 @@ def _handle_audio_player(request_type: str, request: dict) -> dict:
     if request_type == "AudioPlayer.PlaybackNearlyFinished":
         current_song = queue_manager.current()
         logger.info(f"PlaybackNearlyFinished token={token} vid={current_song['video_id'] if current_song else 'None'}")
-        if queue_manager.is_next_buffered():
-            logger.info("PlaybackNearlyFinished: next already buffered by PlaybackStarted")
-            return {"version": "1.0", "response": {}}
         song = queue_manager.peek_next()
         if song is None:
             logger.warning("PlaybackNearlyFinished: queue is empty, stopping")
             return {"version": "1.0", "response": {}}
-        queue_manager.mark_next_buffered()
         new_token = str(uuid.uuid4())
         url = f"{settings.proxy_base_url}/proxy/audio/{song['video_id']}"
         logger.info(f"PlaybackNearlyFinished: pre-buffering {song['video_id']} ({song['title']}) "
@@ -138,34 +134,9 @@ def _handle_audio_player(request_type: str, request: dict) -> dict:
         queue_manager.set_playback_token(token)
         if current_song:
             mark_as_played(current_song["video_id"])
-        queue_manager.clear_next_buffered()
         logger.info(f"PlaybackStarted token={token} "
                      f"vid={current_song['video_id'] if current_song else 'None'} "
                      f"index={queue_manager.get_index()} loop={queue_manager.is_looping()}")
-        next_song = queue_manager.peek_next()
-        if next_song:
-            queue_manager.mark_next_buffered()
-            new_token = str(uuid.uuid4())
-            url = f"{settings.proxy_base_url}/proxy/audio/{next_song['video_id']}"
-            logger.info(f"PlaybackStarted: pre-buffering {next_song['video_id']} ({next_song['title']}) "
-                         f"new_token={new_token} expected_previous={token}")
-            return {
-                "version": "1.0",
-                "response": {
-                    "directives": [{
-                        "type": "AudioPlayer.Play",
-                        "playBehavior": "ENQUEUE",
-                        "audioItem": {
-                            "stream": {
-                                "url": url,
-                                "token": new_token,
-                                "expectedPreviousToken": token,
-                                "offsetInMilliseconds": 0,
-                            }
-                        },
-                    }],
-                },
-            }
         return {"version": "1.0", "response": {}}
 
     elif request_type == "AudioPlayer.PlaybackFinished":

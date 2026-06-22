@@ -7,7 +7,6 @@ from fastapi.responses import Response
 
 logger = logging.getLogger(__name__)
 
-
 async def _get_duration(video_id: str) -> float | None:
     cmd = [
         sys.executable, "-m", "yt_dlp",

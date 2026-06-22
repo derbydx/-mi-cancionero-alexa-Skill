@@ -11,19 +11,6 @@ class QueueManager:
         self._looping: bool = False
         self._playback_offset: int = 0
         self._playback_token: str | None = None
-        self._next_buffered: bool = False
-
-
-    def mark_next_buffered(self):
-        self._next_buffered = True
-
-
-    def clear_next_buffered(self):
-        self._next_buffered = False
-
-
-    def is_next_buffered(self) -> bool:
-        return self._next_buffered
 
     def start_from_query(self, query: str) -> dict:
         song = search_song(query)

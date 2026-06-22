@@ -9,7 +9,7 @@ load_dotenv()
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 from ask_sdk_webservice_support.verifier import (
     RequestVerifier,
     TimestampVerifier,
@@ -19,7 +19,7 @@ from ask_sdk_webservice_support.verifier import (
 from config import settings
 from alexa_handler import handle_alexa_request
 from queue_manager import queue_manager
-from audio_proxy import stream_audio
+from audio_proxy import stream_audio, _get_duration
 from history_manager import init_db, get_history_page, get_all_history, get_total_count, find_duplicates, clean_duplicates
 from music_service import init_ytmusic
 
@@ -72,6 +72,15 @@ async def alexa_endpoint(request: Request):
                 "shouldEndSession": True,
             }
         })
+
+
+@app.head("/proxy/audio/{video_id}")
+async def proxy_audio_head(video_id: str):
+    duration = await _get_duration(video_id)
+    headers = {}
+    if duration:
+        headers["Content-Duration"] = str(int(duration))
+    return Response(headers=headers)
 
 
 @app.get("/proxy/audio/{video_id}")
