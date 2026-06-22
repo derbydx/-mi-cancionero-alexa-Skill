@@ -20,6 +20,7 @@ from config import settings
 from alexa_handler import handle_alexa_request
 from queue_manager import queue_manager
 from audio_proxy import stream_audio
+from history_manager import init_db, get_history, record_playback
 from music_service import init_ytmusic
 
 logging.basicConfig(level=logging.INFO)
@@ -32,6 +33,7 @@ _verifiers = [RequestVerifier(), TimestampVerifier()]
 
 @app.on_event("startup")
 async def startup():
+    init_db()
     try:
         init_ytmusic()
         logger.info("YTMusic initialized")
@@ -94,6 +96,11 @@ async def terms():
 @app.get("/queue/json")
 async def queue_json():
     return queue_manager.get_queue()
+
+
+@app.get("/history")
+async def history():
+    return get_history()
 
 
 @app.get("/queue", response_class=HTMLResponse)

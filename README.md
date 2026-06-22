@@ -92,6 +92,7 @@ Requiere Python 3.14+, entorno virtual, y `pip install -r backend/requirements.t
 | Link | Descripcion |
 |------|-------------|
 | [health](https://mimusica.xyz/health) | Estado del servidor |
+| [history](https://mimusica.xyz/history) | Historial de canciones reproducidas (JSON) |
 | [queue](https://mimusica.xyz/queue) | Cola actual de reproduccion (HTML) |
 | [queue/json](https://mimusica.xyz/queue/json) | Cola actual de reproduccion (JSON para depuracion) |
 | [privacy](https://mimusica.xyz/privacy) | Politica de privacidad |
@@ -110,6 +111,7 @@ de como restaurar el backend en otro equipo.
 - `headers_auth.json` - cookies de Google autenticadas
 - `cloudflared-config.yml` - config local del tunnel
 - `PRIVATE_CONFIG.md` - copia de seguridad de tus credenciales
+- `data/` - base de datos de historial (runtime data)
 - `.venv/` - entorno virtual
 
 ## Licencia

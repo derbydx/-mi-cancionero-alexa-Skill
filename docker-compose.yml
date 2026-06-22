@@ -6,6 +6,7 @@ services:
     volumes:
       - ./headers_auth.json:/app/headers_auth.json
       - ./.env:/app/.env
+      - ./data:/app/data
     restart: unless-stopped
     environment:
       - SKIP_SIGNATURE_VERIFICATION=true

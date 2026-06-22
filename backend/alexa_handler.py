@@ -3,6 +3,7 @@ import uuid
 
 from queue_manager import queue_manager
 from config import settings
+from history_manager import record_playback
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +126,8 @@ def _handle_audio_player(request_type: str, request: dict) -> dict:
     elif request_type == "AudioPlayer.PlaybackStarted":
         current_song = queue_manager.current()
         queue_manager.set_playback_token(token)
+        if current_song:
+            record_playback(current_song["video_id"], current_song["title"], current_song["artist"])
         logger.info(f"PlaybackStarted token={token} "
                      f"vid={current_song['video_id'] if current_song else 'None'} "
                      f"index={queue_manager.get_index()} loop={queue_manager.is_looping()}")

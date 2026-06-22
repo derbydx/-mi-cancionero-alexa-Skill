@@ -31,3 +31,6 @@ docs/superpowers/
 
 # Private config (personal credentials, not to be shared)
 PRIVATE_CONFIG.md
+
+# Runtime data (DB, etc.)
+data/
