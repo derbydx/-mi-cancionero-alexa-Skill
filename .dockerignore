@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+headers_auth.json
+*.log
+.git
+.gitignore
+README.md
+cloudflared-config.yml
+cloudflared-config.docker.yml
+docker-compose.yml
+Dockerfile
+.dockerignore

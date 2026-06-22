@@ -1,66 +1,72 @@
 # Mi Cancionero - Alexa Music Skill
 
-Reproduce música de YouTube Music en tu Echo Dot usando un skill personalizado de Alexa.
+Reproduce musica de YouTube Music en tu Echo Dot usando un skill personalizado de Alexa.
 
 ## Arquitectura
 
 ```
-Echo Dot → Alexa Skill (Mi Cancionero) → Cloudflare Tunnel → FastAPI (localhost:8000)
-                                                                ├── ytmusicapi (búsqueda)
-                                                                ├── yt-dlp + ffmpeg (streaming)
-                                                                └── headers_auth.json (auth Google)
+Echo Dot -> Alexa Skill (Mi Cancionero) -> Cloudflare Tunnel -> FastAPI (Docker, localhost:8000)
+                                                                 |- ytmusicapi (busqueda)
+                                                                 |- yt-dlp (streaming AAC directo)
+                                                                 |- headers_auth.json (auth Google)
 ```
 
 ## Requisitos
 
-- Python 3.14+
-- Node.js (para yt-dlp)
-- FFmpeg (en PATH)
-- Cuenta de desarrollador Alexa (https://developer.amazon.com/alexa)
+- Docker Desktop
+- Python 3.14+ (solo para generar headers_auth.json)
+- Cuenta de desarrollador Alexa
 - Cloudflare Tunnel (cloudflared)
 - Dominio propio (ej: mimusica.xyz)
 
-## Instalación
+## Instalacion (produccion con Docker)
 
-### 1. Clonar y entorno virtual
-
-```bash
-git clone https://github.com/tu-usuario/mi-cancionero-alexa-Skill.git
-cd mi-cancionero-alexa-Skill
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1  # Windows
-pip install -r backend\requirements.txt
-```
-
-### 2. Autenticación YouTube Music
+### 1. Clonar
 
 ```bash
-cd D:\Alexa-Skill-2
-.\.venv\Scripts\Activate.ps1
-python -c "from ytmusicapi import setup; setup(filepath='headers_auth.json')"
+git clone <url-del-repo>
+cd Alexa-Skill-2
 ```
 
-Seguí las instrucciones para pegar los headers de music.youtube.com (incluye cookie, x-goog-authuser, authorization).
+### 2. Configurar credenciales
 
-### 3. Configurar .env
+Sigue las instrucciones en `PRIVATE_CONFIG.md` (archivo personal, no incluido en el repo).
+Necesitas:
+
+- `.env` con `PROXY_BASE_URL`, `SKIP_SIGNATURE_VERIFICATION=true`
+- `headers_auth.json` con cookies de YouTube Music
+- Credenciales de Cloudflare Tunnel en `~\.cloudflared\`
+
+### 3. Construir y ejecutar
 
 ```bash
-cp .env.example .env
+docker compose build
+docker compose up -d
 ```
 
-Editar `.env` con tu dominio real y configuracion.
+Verificar:
+
+```bash
+curl http://localhost:8000/health
+```
 
 ### 4. Exponer con Cloudflare Tunnel
 
-Configurar cloudflared para apuntar tu dominio a localhost:8000.
+El `docker-compose.yml` incluye cloudflared configurado para compartir la red con el backend.
+El tunnel debe estar creado previamente:
+
+```bash
+cloudflared tunnel login
+cloudflared tunnel create f82799a9-d722-40c5-9b86-331879e11005
+```
 
 ### 5. Crear el Skill en Alexa
 
-- Skill tipo "Custom", modelo de interacción en español (MX)
-- Nombre de invocación: "mi cancionero"
-- Endpoint: `https://tu-dominio.xyz/alexa`
+- Skill tipo "Custom", modelo de interaccion en espanol (MX)
+- Nombre de invocacion: "mi cancionero"
+- Endpoint: `https://mimusica.xyz/alexa`
 - Activar **Audio Player** en Build > Interfaces
-- Subir el modelo de interacción
+- Subir el modelo de interaccion
 
 ## Uso
 
@@ -70,20 +76,26 @@ En tu Echo Dot:
 - "pon musica de bad bunny"
 - "siguiente cancion", "pausa", "reanudar"
 
-## Desarrollo
+## Desarrollo local
 
 ```bash
 cd backend
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-El servidor se recarga automáticamente al cambiar código.
+Requiere Python 3.14+, entorno virtual, y `pip install -r backend/requirements.txt`.
+
+## Recuperacion ante desastres
+
+Si esta PC falla, consulta `RECOVERY_PLAN.md` para instrucciones paso a paso
+de como restaurar el backend en otro equipo.
 
 ## Archivos sensibles (NO subir a GitHub)
 
-- `.env` - configuración del servidor
+- `.env` - configuracion del servidor
 - `headers_auth.json` - cookies de Google autenticadas
-- `cloudflared-config.yml` - ID del tunnel
+- `cloudflared-config.yml` - config local del tunnel
+- `PRIVATE_CONFIG.md` - copia de seguridad de tus credenciales
 - `.venv/` - entorno virtual
 
 ## Licencia

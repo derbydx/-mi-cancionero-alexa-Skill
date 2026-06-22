@@ -1,0 +1,6 @@
+tunnel: f82799a9-d722-40c5-9b86-331879e11005
+credentials-file: /etc/cloudflared/credentials.json
+ingress:
+  - hostname: mimusica.xyz
+    service: http://localhost:8000
+  - service: http_status:404

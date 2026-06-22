@@ -1,0 +1,21 @@
+services:
+  backend:
+    build: .
+    expose:
+      - "8000"
+    volumes:
+      - ./headers_auth.json:/app/headers_auth.json
+      - ./.env:/app/.env
+    restart: unless-stopped
+    environment:
+      - SKIP_SIGNATURE_VERIFICATION=true
+      - PROXY_BASE_URL=https://mimusica.xyz
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./cloudflared-config.docker.yml:/etc/cloudflared/config.yml
+      - ${USERPROFILE}\.cloudflared\f82799a9-d722-40c5-9b86-331879e11005.json:/etc/cloudflared/credentials.json
+    restart: unless-stopped
+    network_mode: "service:backend"

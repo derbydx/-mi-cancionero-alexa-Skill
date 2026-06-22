@@ -28,3 +28,6 @@ cloudflared-config.yml
 
 # Agent working files
 docs/superpowers/
+
+# Private config (personal credentials, not to be shared)
+PRIVATE_CONFIG.md
