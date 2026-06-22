@@ -85,6 +85,17 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 Requiere Python 3.14+, entorno virtual, y `pip install -r backend/requirements.txt`.
 
+## Endpoints utiles
+
+| Endpoint | Descripcion |
+|----------|-------------|
+| `GET /health` | Estado del servidor |
+| `GET /queue` | Cola actual de reproduccion (formato HTML) |
+| `GET /privacy` | Politica de privacidad |
+| `GET /terms` | Terminos de uso |
+| `GET /proxy/audio/{video_id}` | Audio directo AAC (usado por el skill) |
+| `POST /alexa` | Endpoint del skill de Alexa |
+
 ## Recuperacion ante desastres
 
 Si esta PC falla, consulta `RECOVERY_PLAN.md` para instrucciones paso a paso
