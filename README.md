@@ -89,10 +89,12 @@ Requiere Python 3.14+, entorno virtual, y `pip install -r backend/requirements.t
 
 | Endpoint | Descripcion |
 |----------|-------------|
-| `GET /health` | Estado del servidor |
-| `GET /queue` | Cola actual de reproduccion (formato HTML) |
-| `GET /privacy` | Politica de privacidad |
-| `GET /terms` | Terminos de uso |
+| Link | Descripcion |
+|------|-------------|
+| [health](https://mimusica.xyz/health) | Estado del servidor |
+| [queue](https://mimusica.xyz/queue) | Cola actual de reproduccion |
+| [privacy](https://mimusica.xyz/privacy) | Politica de privacidad |
+| [terms](https://mimusica.xyz/terms) | Terminos de uso |
 | `GET /proxy/audio/{video_id}` | Audio directo AAC (usado por el skill) |
 | `POST /alexa` | Endpoint del skill de Alexa |
 
