@@ -33,7 +33,7 @@ def _handle_intent(intent: dict) -> dict:
             song = queue_manager.start_from_query(query)
             url = f"{settings.proxy_base_url}/proxy/audio/{song['video_id']}"
             token = str(uuid.uuid4())
-            return build_play_directive(url, token, 0)
+            return build_play_response(song["title"], song["artist"], url, token, 0)
         except LookupError:
             return build_speech_response(f"No encontre ninguna cancion para {query}.")
         except Exception:
@@ -130,6 +130,31 @@ def build_play_directive(url: str, token: str, offset: int = 0) -> dict:
     return {
         "version": "1.0",
         "response": {
+            "directives": [{
+                "type": "AudioPlayer.Play",
+                "playBehavior": "REPLACE_ALL",
+                "audioItem": {
+                    "stream": {
+                        "url": url,
+                        "token": token,
+                        "expectedPreviousToken": None,
+                        "offsetInMilliseconds": offset,
+                    }
+                },
+            }],
+            "shouldEndSession": True,
+        },
+    }
+
+
+def build_play_response(title: str, artist: str, url: str, token: str, offset: int = 0) -> dict:
+    return {
+        "version": "1.0",
+        "response": {
+            "outputSpeech": {
+                "type": "PlainText",
+                "text": f"Reproduciendo {title} de {artist}.",
+            },
             "directives": [{
                 "type": "AudioPlayer.Play",
                 "playBehavior": "REPLACE_ALL",
