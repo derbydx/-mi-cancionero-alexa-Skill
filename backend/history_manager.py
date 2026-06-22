@@ -56,6 +56,16 @@ def mark_as_played(video_id: str):
         logger.info(f"Marked as played: {video_id}")
 
 
+def get_all_history() -> list[dict]:
+    conn = _connect()
+    rows = conn.execute(
+        "SELECT id, video_id, title, artist, played, queued_at, played_at "
+        "FROM playback_history ORDER BY id ASC"
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 def get_total_count() -> int:
     conn = _connect()
     count = conn.execute("SELECT COUNT(*) FROM playback_history").fetchone()[0]

@@ -9,7 +9,7 @@ load_dotenv()
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from ask_sdk_webservice_support.verifier import (
     RequestVerifier,
     TimestampVerifier,
@@ -20,7 +20,7 @@ from config import settings
 from alexa_handler import handle_alexa_request
 from queue_manager import queue_manager
 from audio_proxy import stream_audio
-from history_manager import init_db, get_history_page, get_total_count, find_duplicates, clean_duplicates
+from history_manager import init_db, get_history_page, get_all_history, get_total_count, find_duplicates, clean_duplicates
 from music_service import init_ytmusic
 
 logging.basicConfig(level=logging.INFO)
@@ -109,6 +109,18 @@ async def history_clean_duplicates():
     return {"removed": removed}
 
 
+@app.get("/history/csv")
+async def history_csv():
+    items = get_all_history()
+    lines = ["id,video_id,title,artist,played,queued_at,played_at"]
+    for s in items:
+        title = s.get("title", "").replace('"', '""')
+        artist = s.get("artist", "").replace('"', '""')
+        lines.append(f'{s["id"]},{s["video_id"]},"{title}","{artist}",{s["played"]},{s.get("queued_at","")},{s.get("played_at","")}')
+    return PlainTextResponse("\n".join(lines), media_type="text/csv",
+                             headers={"Content-Disposition": "attachment; filename=historial.csv"})
+
+
 @app.get("/history", response_class=HTMLResponse)
 async def history(page: int = 1, page_size: int = 200):
     data = get_history_page(page, page_size)
@@ -177,6 +189,7 @@ async def history(page: int = 1, page_size: int = 200):
   <div class="toolbar">
     <button class="btn btn-outline" onclick="findDups()">Encontrar duplicados</button>
     <button class="btn btn-warn" onclick="cleanDups()">Limpiar duplicados</button>
+    <a href="/history/csv" class="btn btn-outline" style="text-decoration:none;">Exportar CSV</a>
   </div>
 </div>
 <p class="counter">{start}–{end} de {data["total"]} canciones</p>
