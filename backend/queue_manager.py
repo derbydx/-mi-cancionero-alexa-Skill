@@ -9,6 +9,7 @@ class QueueManager:
         self._current_video_id: str | None = None
         self._looping: bool = False
         self._playback_offset: int = 0
+        self._playback_token: str | None = None
 
     def start_from_query(self, query: str) -> dict:
         song = search_song(query)
@@ -82,12 +83,22 @@ class QueueManager:
         return self._looping
 
 
+    def set_playback_token(self, token: str):
+        self._playback_token = token
+
+    def get_playback_token(self) -> str | None:
+        return self._playback_token
+
+    def get_index(self) -> int:
+        return self._index
+
     def get_queue(self) -> dict:
         return {
             "current_index": self._index,
             "total": len(self._queue),
             "looping": self._looping,
             "current_video_id": self._current_video_id,
+            "playback_token": self._playback_token,
             "current": self.current(),
             "queue": self._queue,
         }

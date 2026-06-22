@@ -91,6 +91,11 @@ async def terms():
         return HTMLResponse(content=f.read())
 
 
+@app.get("/queue/json")
+async def queue_json():
+    return queue_manager.get_queue()
+
+
 @app.get("/queue", response_class=HTMLResponse)
 async def queue():
     q = queue_manager.get_queue()

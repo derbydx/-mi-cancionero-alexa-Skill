@@ -92,7 +92,8 @@ Requiere Python 3.14+, entorno virtual, y `pip install -r backend/requirements.t
 | Link | Descripcion |
 |------|-------------|
 | [health](https://mimusica.xyz/health) | Estado del servidor |
-| [queue](https://mimusica.xyz/queue) | Cola actual de reproduccion |
+| [queue](https://mimusica.xyz/queue) | Cola actual de reproduccion (HTML) |
+| [queue/json](https://mimusica.xyz/queue/json) | Cola actual de reproduccion (JSON para depuracion) |
 | [privacy](https://mimusica.xyz/privacy) | Politica de privacidad |
 | [terms](https://mimusica.xyz/terms) | Terminos de uso |
 | `GET /proxy/audio/{video_id}` | Audio directo AAC (usado por el skill) |
