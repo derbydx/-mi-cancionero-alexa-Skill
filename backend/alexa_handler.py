@@ -4,11 +4,12 @@ import uuid
 from queue_manager import queue_manager
 from config import settings
 from history_manager import mark_as_played
+from music_service import get_cached_direct_url
 
 logger = logging.getLogger(__name__)
 
 
-def handle_alexa_request(body: dict) -> dict:
+async def handle_alexa_request(body: dict) -> dict:
     request = body.get("request", {})
     request_type = request.get("type", "")
     intent = request.get("intent", {})
@@ -16,9 +17,9 @@ def handle_alexa_request(body: dict) -> dict:
     if request_type == "LaunchRequest":
         return build_speech_response("Di el nombre de una cancion o artista para comenzar.")
     elif request_type == "IntentRequest":
-        return _handle_intent(intent)
+        return await _handle_intent(intent)
     elif request_type.startswith("AudioPlayer."):
-        return _handle_audio_player(request_type, request)
+        return await _handle_audio_player(request_type, request)
     elif request_type == "System.ExceptionEncountered":
         error = request.get("error", {})
         cause = request.get("cause", {})
@@ -29,7 +30,7 @@ def handle_alexa_request(body: dict) -> dict:
         return build_speech_response("No entiendo ese comando.")
 
 
-def _handle_intent(intent: dict) -> dict:
+async def _handle_intent(intent: dict) -> dict:
     name = intent.get("name", "")
 
     if name == "BuscarMusicaIntent":
@@ -41,7 +42,7 @@ def _handle_intent(intent: dict) -> dict:
             return build_speech_response("Por favor, dime que cancion o artista quieres escuchar.")
         try:
             song = queue_manager.start_from_query(query)
-            url = f"{settings.proxy_base_url}/proxy/audio/{song['video_id']}"
+            url = await get_cached_direct_url(song['video_id'])
             token = str(uuid.uuid4())
             return build_play_response(song["title"], song["artist"], url, token, 0)
         except LookupError:
@@ -53,7 +54,7 @@ def _handle_intent(intent: dict) -> dict:
         song = queue_manager.skip()
         if song is None:
             return build_speech_response("No hay mas canciones en la cola.")
-        url = f"{settings.proxy_base_url}/proxy/audio/{song['video_id']}"
+        url = await get_cached_direct_url(song['video_id'])
         return build_play_directive(url, str(uuid.uuid4()), 0)
 
     elif name == "AMAZON.PauseIntent":
@@ -63,7 +64,7 @@ def _handle_intent(intent: dict) -> dict:
         current = queue_manager.current()
         if current is None:
             return build_speech_response("No hay musica reproduciendose.")
-        url = f"{settings.proxy_base_url}/proxy/audio/{current['video_id']}"
+        url = await get_cached_direct_url(current['video_id'])
         offset = queue_manager.get_offset()
         return build_play_directive(url, str(uuid.uuid4()), offset)
 
@@ -82,14 +83,14 @@ def _handle_intent(intent: dict) -> dict:
         current = queue_manager.current()
         if current is None:
             return build_speech_response("No hay musica reproduciendose.")
-        url = f"{settings.proxy_base_url}/proxy/audio/{current['video_id']}"
+        url = await get_cached_direct_url(current['video_id'])
         return build_play_directive(url, str(uuid.uuid4()), 0)
 
     else:
         return build_speech_response("No entiendo ese comando.")
 
 
-def _handle_audio_player(request_type: str, request: dict) -> dict:
+async def _handle_audio_player(request_type: str, request: dict) -> dict:
     token = request.get("token", "")
     offset = request.get("offsetInMilliseconds", 0)
 
@@ -101,7 +102,7 @@ def _handle_audio_player(request_type: str, request: dict) -> dict:
             logger.warning("PlaybackNearlyFinished: queue is empty, stopping")
             return {"version": "1.0", "response": {}}
         new_token = str(uuid.uuid4())
-        url = f"{settings.proxy_base_url}/proxy/audio/{song['video_id']}"
+        url = await get_cached_direct_url(song['video_id'])
         logger.info(f"PlaybackNearlyFinished: pre-buffering {song['video_id']} ({song['title']}) "
                      f"new_token={new_token} expected_previous={token}")
         return {
@@ -158,7 +159,7 @@ def _handle_audio_player(request_type: str, request: dict) -> dict:
         song = queue_manager.skip()
         if song is None:
             return {"version": "1.0", "response": {}}
-        url = f"{settings.proxy_base_url}/proxy/audio/{song['video_id']}"
+        url = await get_cached_direct_url(song['video_id'])
         logger.info(f"PlaybackFailed: skipping to {song['video_id']} ({song['title']})")
         return build_play_directive_audio(url, str(uuid.uuid4()), 0)
 

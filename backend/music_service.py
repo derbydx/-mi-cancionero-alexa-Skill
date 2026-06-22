@@ -52,6 +52,16 @@ def get_watch_playlist(video_id: str, limit: int = 50) -> list[dict]:
     return result
 
 
+_url_cache: dict[str, str] = {}
+
+async def get_cached_direct_url(video_id: str) -> str:
+    if video_id in _url_cache:
+        return _url_cache[video_id]
+    url = await get_streaming_url(video_id)
+    _url_cache[video_id] = url
+    return url
+
+
 async def get_streaming_url(video_id: str) -> str:
     proc = await asyncio.create_subprocess_exec(
         sys.executable, "-m", "yt_dlp",

@@ -61,7 +61,7 @@ async def alexa_endpoint(request: Request):
     try:
         body = await request.json()
         logger.info(f"Alexa request type: {body.get('request', {}).get('type')}")
-        response = handle_alexa_request(body)
+        response = await handle_alexa_request(body)
         return JSONResponse(content=response)
     except Exception as e:
         logger.error(f"Error handling Alexa request: {e}")
