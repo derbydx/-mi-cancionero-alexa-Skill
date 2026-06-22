@@ -91,9 +91,54 @@ async def terms():
         return HTMLResponse(content=f.read())
 
 
-@app.get("/queue")
+@app.get("/queue", response_class=HTMLResponse)
 async def queue():
-    return queue_manager.get_queue()
+    q = queue_manager.get_queue()
+    rows = ""
+    for i, s in enumerate(q["queue"]):
+        vid = s["video_id"]
+        title = s.get("title", "?")
+        artist = s.get("artist", "?")
+        url = f"{settings.proxy_base_url}/proxy/audio/{vid}"
+        cls = " current" if i == q["current_index"] else ""
+        rows += f"""<tr class="{cls}">
+<td class="i">{i + 1}</td>
+<td><a href="{url}" target="_blank">{title}</a></td>
+<td>{artist}</td>
+<td><code>{vid}</code></td>
+</tr>"""
+    loop_badge = ' <span class="loop">🔁 Bucle activado</span>' if q["looping"] else ""
+    html = f"""<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cola - Mi Cancionero</title>
+<style>
+  body {{ font-family: Arial, sans-serif; max-width: 900px; margin: 30px auto; padding: 0 20px; color: #333; }}
+  h1 {{ color: #1a1a2e; }}
+  .meta {{ color: #666; margin-bottom: 20px; }}
+  .loop {{ background: #fff3cd; padding: 3px 10px; border-radius: 4px; font-size: 14px; }}
+  table {{ width: 100%; border-collapse: collapse; }}
+  th, td {{ padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; }}
+  th {{ background: #f5f5f5; position: sticky; top: 0; }}
+  tr.current {{ background: #e3f2fd; font-weight: bold; }}
+  td.i {{ color: #999; width: 40px; }}
+  code {{ font-size: 12px; color: #999; }}
+  a {{ color: #1a73e8; text-decoration: none; }}
+  a:hover {{ text-decoration: underline; }}
+</style>
+</head>
+<body>
+<h1>Cola de reproduccion{loop_badge}</h1>
+<p class="meta">{q["total"]} canciones · Actual: {q["current_index"] + 1} de {q["total"]}</p>
+<table>
+<thead><tr><th>#</th><th>Titulo</th><th>Artista</th><th>ID</th></tr></thead>
+<tbody>{rows}</tbody>
+</table>
+</body>
+</html>"""
+    return HTMLResponse(content=html)
 
 
 @app.get("/health")
