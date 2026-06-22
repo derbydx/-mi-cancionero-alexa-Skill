@@ -29,6 +29,9 @@ async def _get_duration(video_id: str) -> float | None:
 
 async def stream_audio(video_id: str, request: Request) -> Response:
     logger.info(f"Descargando audio con yt-dlp para {video_id}")
+    range_header = request.headers.get("range", "")
+    if range_header:
+        logger.info(f"Range request from {request.client.host}: {range_header}")
 
     duration = await _get_duration(video_id)
     if duration:
@@ -59,13 +62,36 @@ async def stream_audio(video_id: str, request: Request) -> Response:
                         content="Error obteniendo el flujo de audio")
 
     data = stdout
-    logger.info(f"Audio {video_id}: {len(data)} bytes")
-    headers = {"Cache-Control": "no-cache", "Content-Length": str(len(data))}
+    total = len(data)
+    logger.info(f"Audio {video_id}: {total} bytes")
+
+    status_code = 200
+    headers = {"Cache-Control": "no-cache", "Accept-Ranges": "bytes"}
+
+    if range_header:
+        try:
+            parts = range_header.replace("bytes=", "").split("-")
+            start = int(parts[0])
+            end = int(parts[1]) if parts[1] else total - 1
+            if start >= total:
+                return Response(status_code=416)
+            data = data[start:end + 1]
+            status_code = 206
+            headers["Content-Range"] = f"bytes {start}-{end}/{total}"
+            headers["Content-Length"] = str(len(data))
+            logger.info(f"Range response: bytes {start}-{end}/{total}")
+        except Exception as e:
+            logger.warning(f"Invalid range header '{range_header}': {e}")
+            headers["Content-Length"] = str(total)
+    else:
+        headers["Content-Length"] = str(total)
+
     if duration:
         headers["Content-Duration"] = str(int(duration))
+
     return Response(
         content=data,
-        status_code=200,
+        status_code=status_code,
         media_type="audio/mp4",
         headers=headers,
     )
