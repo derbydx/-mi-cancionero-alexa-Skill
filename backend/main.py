@@ -98,9 +98,54 @@ async def queue_json():
     return queue_manager.get_queue()
 
 
-@app.get("/history")
-async def history():
-    return get_history()
+@app.get("/history", response_class=HTMLResponse)
+async def history(limit: int = 100):
+    items = get_history(limit)
+    rows = ""
+    for i, s in enumerate(items):
+        title = s.get("title", "?")
+        artist = s.get("artist", "?")
+        played = s.get("played", 0)
+        badge = '<span class="played">Reproducida</span>' if played else '<span class="queued">En cola</span>'
+        played_at = (s.get("played_at") or "")[:19].replace("T", " ") if s.get("played_at") else "-"
+        queued_at = (s.get("queued_at") or "")[:19].replace("T", " ") if s.get("queued_at") else "-"
+        rows += f"""<tr>
+<td class="i">{i + 1}</td>
+<td>{title}</td>
+<td>{artist}</td>
+<td>{badge}</td>
+<td class="ts">{queued_at}</td>
+<td class="ts">{played_at}</td>
+</tr>"""
+    html = f"""<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Historial - Mi Cancionero</title>
+<style>
+  body {{ font-family: Arial, sans-serif; max-width: 1000px; margin: 30px auto; padding: 0 20px; color: #333; }}
+  h1 {{ color: #1a1a2e; }}
+  .meta {{ color: #666; margin-bottom: 20px; }}
+  table {{ width: 100%; border-collapse: collapse; }}
+  th, td {{ padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; }}
+  th {{ background: #f5f5f5; position: sticky; top: 0; }}
+  td.i {{ color: #999; width: 40px; }}
+  td.ts {{ font-size: 13px; color: #666; white-space: nowrap; }}
+  .played {{ background: #d4edda; color: #155724; padding: 2px 8px; border-radius: 4px; font-size: 12px; }}
+  .queued {{ background: #fff3cd; color: #856404; padding: 2px 8px; border-radius: 4px; font-size: 12px; }}
+</style>
+</head>
+<body>
+<h1>Historial</h1>
+<p class="meta">{len(items)} canciones registradas</p>
+<table>
+<thead><tr><th>#</th><th>Titulo</th><th>Artista</th><th>Estado</th><th>Encolada</th><th>Reproducida</th></tr></thead>
+<tbody>{rows}</tbody>
+</table>
+</body>
+</html>"""
+    return HTMLResponse(content=html)
 
 
 @app.get("/queue", response_class=HTMLResponse)

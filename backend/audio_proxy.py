@@ -8,8 +8,30 @@ from fastapi.responses import Response
 logger = logging.getLogger(__name__)
 
 
+async def _get_duration(video_id: str) -> float | None:
+    cmd = [
+        sys.executable, "-m", "yt_dlp",
+        "--print", "duration",
+        f"https://www.youtube.com/watch?v={video_id}",
+    ]
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=30)
+        if proc.returncode == 0:
+            return float(stdout.decode().strip())
+    except Exception:
+        pass
+    return None
+
+
 async def stream_audio(video_id: str, request: Request) -> Response:
     logger.info(f"Descargando audio con yt-dlp para {video_id}")
+
+    duration = await _get_duration(video_id)
+    if duration:
+        logger.info(f"Duracion de {video_id}: {duration}s")
 
     cmd = [
         sys.executable, "-m", "yt_dlp",
@@ -37,9 +59,12 @@ async def stream_audio(video_id: str, request: Request) -> Response:
 
     data = stdout
     logger.info(f"Audio {video_id}: {len(data)} bytes")
+    headers = {"Cache-Control": "no-cache", "Content-Length": str(len(data))}
+    if duration:
+        headers["Content-Duration"] = str(int(duration))
     return Response(
         content=data,
         status_code=200,
         media_type="audio/mp4",
-        headers={"Cache-Control": "no-cache", "Content-Length": str(len(data))},
+        headers=headers,
     )
