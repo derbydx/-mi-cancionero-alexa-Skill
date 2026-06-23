@@ -89,11 +89,45 @@ async def process_task(client: httpx.AsyncClient, task: dict):
         await report_status(client, tid, "failed", error=str(e))
 
 
-async def report_progress(client: httpx.AsyncClient, task_id: int, progress: float):
+def _parse_progress_line(line: str) -> dict:
+    data = {}
+    m = re.search(r"(\d+\.?\d*)%", line)
+    if m:
+        data["progress"] = float(m.group(1))
+    m = re.search(r"of\s+([\d.]+)\s*(\S+)", line)
+    if m:
+        val = float(m.group(1))
+        unit = m.group(2)
+        if unit.startswith("MiB"):
+            data["total_mb"] = round(val * 1.048576, 1)
+        elif unit.startswith("KiB"):
+            data["total_mb"] = round(val / 1024, 1)
+        elif unit.startswith("GiB"):
+            data["total_mb"] = round(val * 1073.742, 1)
+        else:
+            data["total_mb"] = round(val, 1)
+    m = re.search(r"at\s+([\d.]+)\s*(\S+)", line)
+    if m:
+        val = float(m.group(1))
+        unit = m.group(2)
+        if unit.startswith("MiB"):
+            data["speed_mb_s"] = round(val * 1.048576, 2)
+        elif unit.startswith("KiB"):
+            data["speed_mb_s"] = round(val / 1024, 2)
+        else:
+            data["speed_mb_s"] = round(val, 2)
+    m = re.search(r"ETA\s+(\S+)", line)
+    if m:
+        data["eta"] = m.group(1)
+    return data
+
+
+async def report_progress(client: httpx.AsyncClient, task_id: int, progress: float,
+                          total_mb: float = 0.0, speed_mb_s: float = 0.0, eta: str = ""):
     try:
         await client.post(
             f"{BACKEND_URL}/api/offline/tasks/{task_id}/progress",
-            json={"progress": round(progress, 1)},
+            json={"progress": round(progress, 1), "total_mb": total_mb, "speed_mb_s": speed_mb_s, "eta": eta},
             timeout=5,
         )
     except Exception as e:
@@ -154,7 +188,13 @@ async def download_song(client: httpx.AsyncClient, task_id: int, video_id: str, 
                             last_progress = pct
                             if pct - last_report >= 5 or pct >= 100:
                                 last_report = pct
-                                await report_progress(client, task_id, pct)
+                                extra = _parse_progress_line(line)
+                                await report_progress(
+                                    client, task_id, pct,
+                                    total_mb=extra.get("total_mb", 0),
+                                    speed_mb_s=extra.get("speed_mb_s", 0),
+                                    eta=extra.get("eta", ""),
+                                )
                         except ValueError:
                             pass
 

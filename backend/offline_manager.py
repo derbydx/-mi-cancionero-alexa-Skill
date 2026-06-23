@@ -50,6 +50,18 @@ def init_offline_db():
         conn.execute("ALTER TABLE offline_tasks ADD COLUMN progress REAL DEFAULT 0")
     except Exception:
         pass
+    try:
+        conn.execute("ALTER TABLE offline_tasks ADD COLUMN total_mb REAL DEFAULT 0")
+    except Exception:
+        pass
+    try:
+        conn.execute("ALTER TABLE offline_tasks ADD COLUMN speed_mb_s REAL DEFAULT 0")
+    except Exception:
+        pass
+    try:
+        conn.execute("ALTER TABLE offline_tasks ADD COLUMN eta TEXT DEFAULT ''")
+    except Exception:
+        pass
     conn.execute("""
         CREATE TABLE IF NOT EXISTS downloader_state (
             key TEXT PRIMARY KEY,
@@ -107,9 +119,12 @@ def update_task_status(task_id: int, status: str, filepath: str = "", error: str
     conn.close()
 
 
-def update_task_progress(task_id: int, progress: float):
+def update_task_progress(task_id: int, progress: float, total_mb: float = 0.0, speed_mb_s: float = 0.0, eta: str = ""):
     conn = _get_db()
-    conn.execute("UPDATE offline_tasks SET progress=? WHERE id=?", (progress, task_id))
+    conn.execute(
+        "UPDATE offline_tasks SET progress=?, total_mb=?, speed_mb_s=?, eta=? WHERE id=?",
+        (progress, total_mb, speed_mb_s, eta, task_id),
+    )
     conn.commit()
     conn.close()
 

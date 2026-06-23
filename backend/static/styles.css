@@ -899,6 +899,13 @@ html, body {
   vertical-align: middle;
 }
 
+.dl-info {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  white-space: nowrap;
+}
+
 /* ── Offline Badge & Queue Favorite Button ───────────────────────────────── */
 
 .badge-offline {

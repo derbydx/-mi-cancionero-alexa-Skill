@@ -660,8 +660,16 @@ function renderDlTask(t) {
     ? `<div class="dl-error">${esc(t.error)}</div>`
     : '';
 
+  let dlInfo = '';
+  if (t.status === 'downloading' && t.progress > 0) {
+    const total = t.total_mb > 0 ? (t.total_mb >= 1000 ? (t.total_mb/1024).toFixed(1)+' GB' : Math.round(t.total_mb)+' MB') : '';
+    const speed = t.speed_mb_s > 0 ? t.speed_mb_s.toFixed(2)+' MB/s' : '';
+    const eta = t.eta ? t.eta : '';
+    const parts = [total, speed, eta ? 'ETA '+eta : ''].filter(Boolean);
+    dlInfo = '<div class="dl-info">'+parts.join(' &middot; ')+'</div>';
+  }
   const progressHtml = t.status === 'downloading' && t.progress > 0
-    ? `<div class="progress-bar-dl"><div class="progress-fill-dl" style="width:${Math.min(t.progress, 100)}%"></div></div><span class="dl-pct">${Math.round(t.progress)}%</span>`
+    ? `<div class="progress-bar-dl"><div class="progress-fill-dl" style="width:${Math.min(t.progress, 100)}%"></div></div><span class="dl-pct">${Math.round(t.progress)}%</span>${dlInfo}`
     : '';
 
   return `<div class="song-row">

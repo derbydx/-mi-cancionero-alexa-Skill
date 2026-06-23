@@ -196,7 +196,13 @@ async def api_offline_update_status(task_id: int, request: Request):
 async def api_offline_progress(task_id: int, request: Request):
     try:
         body = await request.json()
-        update_task_progress(task_id, float(body.get("progress", 0)))
+        update_task_progress(
+            task_id,
+            float(body.get("progress", 0)),
+            total_mb=float(body.get("total_mb", 0)),
+            speed_mb_s=float(body.get("speed_mb_s", 0)),
+            eta=body.get("eta", ""),
+        )
         return {"ok": True}
     except Exception as e:
         logger.error("Offline progress update error: %s", e)
