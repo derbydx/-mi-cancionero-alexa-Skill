@@ -48,6 +48,7 @@ def get_watch_playlist(video_id: str, limit: int = 50) -> list[dict]:
             "video_id": vid,
             "title": t.get("title", ""),
             "artist": ", ".join(a.get("name", "") for a in t.get("artists", [])),
+            "thumbnail": t.get("thumbnails", [{}])[-1].get("url", ""),
         })
     return result
 

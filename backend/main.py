@@ -60,7 +60,14 @@ async def alexa_endpoint(request: Request):
 
     try:
         body = await request.json()
-        logger.info(f"Alexa request type: {body.get('request', {}).get('type')}")
+        req_type = body.get('request', {}).get('type', '')
+        logger.info(f"Alexa request type: {req_type}")
+        if req_type == "AudioPlayer.PlaybackStarted":
+            ctx = body.get('context', {})
+            sys = ctx.get('System', {})
+            device = sys.get('device', {})
+            supported = device.get('supportedInterfaces', {})
+            logger.info(f"Device supportedInterfaces: {list(supported.keys())}")
         response = await handle_alexa_request(body)
         return JSONResponse(content=response)
     except Exception as e:

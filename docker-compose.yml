@@ -14,7 +14,7 @@ services:
 
   cloudflared:
     image: cloudflare/cloudflared:latest
-    command: tunnel --config /etc/cloudflared/config.yml run
+    command: tunnel --protocol http2 --config /etc/cloudflared/config.yml run
     volumes:
       - ./cloudflared-config.docker.yml:/etc/cloudflared/config.yml
       - ${USERPROFILE}\.cloudflared\f82799a9-d722-40c5-9b86-331879e11005.json:/etc/cloudflared/credentials.json

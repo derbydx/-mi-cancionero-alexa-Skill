@@ -52,6 +52,8 @@ class QueueManager:
         n = self._index + 1
         if n < len(self._queue):
             return self._queue[n]
+        if self._looping and self._queue:
+            return self._queue[0]
         if self._current_video_id:
             self._refill(self._current_video_id)
         if n < len(self._queue):
