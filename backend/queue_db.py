@@ -73,6 +73,10 @@ def load_queue() -> tuple[list[dict], dict] | tuple[None, None]:
     try:
         items_row = conn.execute("SELECT * FROM queue_items ORDER BY position").fetchall()
         state_row = conn.execute("SELECT * FROM queue_state WHERE id = 1").fetchone()
+    except Exception:
+        conn.close()
+        return None, None
+    try:
         if not state_row or not items_row:
             return None, None
         items = []

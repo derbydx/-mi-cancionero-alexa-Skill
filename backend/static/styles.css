@@ -431,6 +431,27 @@ html, body {
   color: var(--primary);
 }
 
+.btn-dl-manual {
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 50%;
+  font-size: 12px;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.btn-dl-manual:hover {
+  color: var(--primary);
+}
+
 .btn-menu {
   width: 32px;
   height: 32px;
@@ -789,6 +810,10 @@ html, body {
   margin-bottom: 20px;
 }
 
+.dl-section.collapsed .dl-body {
+  display: none;
+}
+
 .dl-section-title {
   font-size: 13px;
   font-weight: 600;
@@ -799,6 +824,28 @@ html, body {
   display: flex;
   align-items: center;
   gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dl-section-title:hover {
+  color: var(--text);
+}
+
+.collapse-icon {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.collapse-icon::before {
+  content: "\f077";
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+}
+
+.collapsed .collapse-icon::before {
+  content: "\f078";
 }
 
 .dl-icon {

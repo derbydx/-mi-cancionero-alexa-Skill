@@ -67,7 +67,6 @@ function showView(name) {
   } else if (name === 'downloads') {
     header.style.display = 'none';
     tabs.style.display = 'none';
-    syncDownloads();
     renderDownloadManager();
     fetchDownloadTasks();
   }
@@ -140,7 +139,7 @@ async function api(url, opts = {}) {
   try {
     const res = await fetch(url, opts);
     if (res.status === 401) {
-      window.location.href = '/login';
+      window.location.href = '/app-music/login';
       return null;
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -152,7 +151,7 @@ async function api(url, opts = {}) {
 }
 
 async function fetchQueue() {
-  const data = await api('/api/queue');
+  const data = await api('/app-music/api/queue');
   if (data) {
     state.queue = data;
     renderBottomBar();
@@ -161,12 +160,12 @@ async function fetchQueue() {
 }
 
 async function fetchFavorites() {
-  const data = await api('/api/favorites');
+  const data = await api('/app-music/api/favorites');
   if (data) state.favorites = data;
 }
 
 async function fetchHistory(page) {
-  const data = await api(`/api/history?page=${page || 1}&page_size=50`);
+  const data = await api(`/app-music/api/history?page=${page || 1}&page_size=50`);
   if (data) {
     state.historyData = data;
     renderReciente();
@@ -178,14 +177,14 @@ async function searchSongs(query) {
   state.searchQuery = query;
   const el = $('tab-results');
   el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
-  const data = await api(`/api/search?q=${encodeURIComponent(query)}`);
+  const data = await api(`/app-music/api/search?q=${encodeURIComponent(query)}`);
   state.searchResults = data || [];
   renderSearchResults();
   fetchOfflineStatuses();
 }
 
 async function enqueueSong(song) {
-  const data = await api('/api/queue', {
+  const data = await api('/app-music/api/queue', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(song),
@@ -199,12 +198,12 @@ async function enqueueSong(song) {
 }
 
 async function toggleFavorite(song) {
-  const check = await api(`/api/favorites/check/${song.video_id}`);
+  const check = await api(`/app-music/api/favorites/check/${song.video_id}`);
   if (check && check.favorite) {
-    await api(`/api/favorites/${song.video_id}`, { method: 'DELETE' });
+    await api(`/app-music/api/favorites/${song.video_id}`, { method: 'DELETE' });
     showToast('Quitado de favoritos');
   } else {
-    await api('/api/favorites', {
+    await api('/app-music/api/favorites', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(song),
@@ -217,7 +216,7 @@ async function toggleFavorite(song) {
 }
 
 async function removeFavorite(videoId) {
-  const res = await api(`/api/favorites/${videoId}`, { method: 'DELETE' });
+  const res = await api(`/app-music/api/favorites/${videoId}`, { method: 'DELETE' });
   if (res && res.ok) {
     showToast('Quitado de favoritos');
     fetchFavorites();
@@ -226,7 +225,7 @@ async function removeFavorite(videoId) {
 }
 
 async function fetchDownloadTasks() {
-  const data = await api('/api/offline/tasks');
+  const data = await api('/app-music/api/offline/tasks');
   if (data) {
     state.downloadTasks = data;
     if (state.currentView === 'downloads') renderDownloadManager();
@@ -236,7 +235,7 @@ async function fetchDownloadTasks() {
 async function fetchOfflineStatuses() {
   if (!state.searchResults || state.searchResults.length === 0) return;
   const ids = state.searchResults.map(s => s.video_id).join(',');
-  const data = await api(`/api/offline/statuses?ids=${encodeURIComponent(ids)}`);
+  const data = await api(`/app-music/api/offline/statuses?ids=${encodeURIComponent(ids)}`);
   if (data) {
     state.offlineStatuses = data;
     renderSearchResults();
@@ -245,24 +244,56 @@ async function fetchOfflineStatuses() {
 
 async function deleteOffline(videoId) {
   if (!confirm('Eliminar descarga offline?')) return;
-  const res = await api(`/api/offline/${videoId}`, { method: 'DELETE' });
+  const res = await api(`/app-music/api/offline/${videoId}`, { method: 'DELETE' });
   if (res && res.ok) {
     showToast('Eliminado');
     fetchDownloadTasks();
   }
 }
 
-async function syncDownloads() {
-  const res = await api('/api/offline/sync', { method: 'POST' });
+async function markForDownload(song) {
+  const res = await api('/app-music/api/offline/tasks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(song),
+  });
   if (res && res.ok) {
-    showToast(`Sincronizadas ${res.total} canciones`);
+    showToast('Agregado a descargas');
+    fetchDownloadTasks();
+    fetchOfflineStatuses();
+  } else {
+    showToast('Error al agregar');
+  }
+}
+
+async function downloadAllQueue() {
+  if (!state.queue || !state.queue.queue) {
+    showToast('Cola vacia');
+    return;
+  }
+  for (const s of state.queue.queue) {
+    await api('/app-music/api/offline/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ video_id: s.video_id, title: s.title, artist: s.artist, thumbnail: s.thumbnail || '' }),
+    });
+  }
+  showToast('Agregadas a descargas');
+  fetchDownloadTasks();
+  await resumeDownloader();
+}
+
+async function resumeDownloader() {
+  const res = await api('/app-music/api/offline/downloader/resume', { method: 'POST' });
+  if (res && res.ok) {
+    showToast('Descargando pendientes...');
     fetchDownloadTasks();
   }
 }
 
 async function clearQueue() {
   if (!confirm('Limpiar toda la cola?')) return;
-  const res = await api('/api/queue/clear', { method: 'POST' });
+  const res = await api('/app-music/api/queue/clear', { method: 'POST' });
   if (res && res.ok) {
     showToast('Cola limpiada');
     fetchQueue();
@@ -325,6 +356,12 @@ function renderQueueSidebar() {
         <div class="title">${esc(s.title)}</div>
         <div class="artist">${esc(s.artist)}</div>
       </div>
+      <button class="qfav-btn" onclick="event.stopPropagation();markForDownload({
+        video_id:'${escAttr(s.video_id)}',
+        title:'${escAttr(s.title)}',
+        artist:'${escAttr(s.artist)}',
+        thumbnail:'${escAttr(s.thumbnail||'')}'
+      })" title="Descargar"><i class="fas fa-download"></i></button>
       <button class="qfav-btn ${isFaved?'active':''}"
         onclick="event.stopPropagation();toggleFavorite({
           video_id:'${escAttr(s.video_id)}',
@@ -354,7 +391,7 @@ function renderQueueFull() {
   }
 
   el.innerHTML = `<p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">
-    ${q.total} canciones${q.looping ? ' &middot; Bucle activado' : ''}</p>
+      ${q.total} canciones${q.looping ? ' &middot; Bucle activado' : ''}</p>
     ${q.queue.map((s, i) => {
       const isCurrent = i === q.current_index;
       const isFaved = state.favorites.some(f => f.video_id === s.video_id);
@@ -365,6 +402,12 @@ function renderQueueFull() {
           <div class="artist">${esc(s.artist)}</div>
         </div>
         <div class="actions">
+          <button class="action-btn" onclick="markForDownload({
+            video_id:'${escAttr(s.video_id)}',
+            title:'${escAttr(s.title)}',
+            artist:'${escAttr(s.artist)}',
+            thumbnail:'${escAttr(s.thumbnail||'')}'
+          })" title="Descargar"><i class="fas fa-download"></i></button>
           <button class="action-btn ${isFaved?'active':''}"
             onclick="toggleFavorite({
               video_id:'${escAttr(s.video_id)}',
@@ -417,6 +460,12 @@ function renderSearchResults() {
             artist:'${escAttr(s.artist)}',
             thumbnail:'${escAttr(s.thumbnail||'')}'
           })" title="Encolar"><i class="fas fa-plus"></i></button>
+          <button class="action-btn" onclick="markForDownload({
+            video_id:'${escAttr(s.video_id)}',
+            title:'${escAttr(s.title)}',
+            artist:'${escAttr(s.artist)}',
+            thumbnail:'${escAttr(s.thumbnail||'')}'
+          })" title="Descargar"><i class="fas fa-download"></i></button>
           <button class="action-btn ${isFaved?'active':''}"
             onclick="toggleFavorite({
               video_id:'${escAttr(s.video_id)}',
@@ -455,6 +504,12 @@ function renderCenterFavorites() {
             artist:'${escAttr(s.artist)}',
             thumbnail:'${escAttr(s.thumbnail||'')}'
           })" title="Encolar"><i class="fas fa-plus"></i></button>
+          <button class="action-btn" onclick="markForDownload({
+            video_id:'${escAttr(s.video_id)}',
+            title:'${escAttr(s.title)}',
+            artist:'${escAttr(s.artist)}',
+            thumbnail:'${escAttr(s.thumbnail||'')}'
+          })" title="Descargar"><i class="fas fa-download"></i></button>
           <button class="action-btn danger" onclick="removeFavorite('${escAttr(s.video_id)}')"
             title="Quitar"><i class="fas fa-trash"></i></button>
         </div>
@@ -505,11 +560,33 @@ function renderReciente() {
 // ── Download Manager View ──────────────────────────────────────────────────
 
 async function retryDownload(videoId) {
-  const res = await api(`/api/offline/${videoId}/retry`, { method: 'POST' });
+  const res = await api(`/app-music/api/offline/${videoId}/retry`, { method: 'POST' });
   if (res && res.ok) {
     showToast('Reintentando descarga');
     fetchDownloadTasks();
   }
+}
+
+async function clearCompleted() {
+  const res = await api('/app-music/api/offline/clear-completed', { method: 'POST' });
+  if (res && res.ok) {
+    showToast(res.removed + ' descargas eliminadas');
+    fetchDownloadTasks();
+  }
+}
+
+function toggleSection(btn) {
+  const section = btn.closest('.dl-section');
+  section.classList.toggle('collapsed');
+  if (!state.sectionState) state.sectionState = {};
+  const label = btn.textContent.trim().split(' (')[0];
+  state.sectionState[label] = section.classList.contains('collapsed');
+}
+
+function getSectionState(label) {
+  if (!state.sectionState) state.sectionState = {};
+  if (state.sectionState[label] === undefined) state.sectionState[label] = false;
+  return state.sectionState[label] ? 'collapsed' : '';
 }
 
 function renderDownloadManager() {
@@ -524,7 +601,7 @@ function renderDownloadManager() {
   const tasks = state.downloadTasks;
 
   if (!tasks || tasks.length === 0) {
-    el.innerHTML = '<div class="empty-state"><i class="fas fa-download"></i><p>Sin descargas</p><p style="font-size:12px;color:var(--text-muted);margin-top:8px;">Las canciones en cola se descargan automaticamente</p></div>';
+    el.innerHTML = '<div class="empty-state"><i class="fas fa-download"></i><p>Sin descargas</p><p style="font-size:12px;color:var(--text-muted);margin-top:8px;">Agrega canciones con el boton de descarga o usa "Descargar pendientes"</p></div>';
     return;
   }
 
@@ -533,30 +610,35 @@ function renderDownloadManager() {
   const completed = tasks.filter(t => t.status === 'complete');
   const failed = tasks.filter(t => t.status === 'failed');
 
-  let html = '<div class="dl-toolbar"><button class="btn-sync" onclick="syncDownloads()"><i class="fas fa-sync"></i> Sincronizar con la cola</button></div>';
+  let html = '<div class="dl-toolbar">';
+  html += '<button class="btn-sync" onclick="resumeDownloader()"><i class="fas fa-download"></i> Descargar pendientes</button>';
+  if (completed.length > 0) {
+    html += '<button class="btn-sync" onclick="clearCompleted()" style="margin-left:6px;"><i class="fas fa-trash"></i> Limpiar completadas</button>';
+  }
+  html += '</div>';
 
   if (downloading.length > 0) {
-    html += `<div class="dl-section"><h3 class="dl-section-title"><i class="fas fa-circle-notch fa-spin dl-icon"></i> Descargando</h3>`;
+    html += `<div class="dl-section ${getSectionState('Descargando')}"><h3 class="dl-section-title" onclick="toggleSection(this)"><i class="fas fa-circle-notch fa-spin dl-icon"></i> Descargando (${downloading.length}) <span class="collapse-icon"></span></h3><div class="dl-body">`;
     html += downloading.map(t => renderDlTask(t)).join('');
-    html += `</div>`;
+    html += `</div></div>`;
   }
 
   if (pending.length > 0) {
-    html += `<div class="dl-section"><h3 class="dl-section-title"><i class="fas fa-clock dl-icon"></i> Pendientes (${pending.length})</h3>`;
+    html += `<div class="dl-section ${getSectionState('Pendientes')}"><h3 class="dl-section-title" onclick="toggleSection(this)"><i class="fas fa-clock dl-icon"></i> Pendientes (${pending.length}) <span class="collapse-icon"></span></h3><div class="dl-body">`;
     html += pending.map(t => renderDlTask(t)).join('');
-    html += `</div>`;
+    html += `</div></div>`;
   }
 
   if (completed.length > 0) {
-    html += `<div class="dl-section"><h3 class="dl-section-title"><i class="fas fa-check-circle dl-icon" style="color:var(--primary)"></i> Completadas (${completed.length})</h3>`;
+    html += `<div class="dl-section ${getSectionState('Completadas')}"><h3 class="dl-section-title" onclick="toggleSection(this)"><i class="fas fa-check-circle dl-icon" style="color:var(--primary)"></i> Completadas (${completed.length}) <span class="collapse-icon"></span></h3><div class="dl-body">`;
     html += completed.map(t => renderDlTask(t)).join('');
-    html += `</div>`;
+    html += `</div></div>`;
   }
 
   if (failed.length > 0) {
-    html += `<div class="dl-section"><h3 class="dl-section-title"><i class="fas fa-exclamation-circle dl-icon" style="color:var(--danger)"></i> Fallidas (${failed.length})</h3>`;
+    html += `<div class="dl-section ${getSectionState('Fallidas')}"><h3 class="dl-section-title" onclick="toggleSection(this)"><i class="fas fa-exclamation-circle dl-icon" style="color:var(--danger)"></i> Fallidas (${failed.length}) <span class="collapse-icon"></span></h3><div class="dl-body">`;
     html += failed.map(t => renderDlTask(t)).join('');
-    html += `</div>`;
+    html += `</div></div>`;
   }
 
   el.innerHTML = html;

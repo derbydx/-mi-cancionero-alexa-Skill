@@ -1,11 +1,11 @@
 const CACHE = 'cancionero-v1';
 const ASSETS = [
-  '/',
-  '/static/index.html',
-  '/static/app.js',
-  '/static/styles.css',
-  '/static/manifest.json',
-  '/static/icons/icon.svg',
+  '/app-music/',
+  '/app-music/static/index.html',
+  '/app-music/static/app.js',
+  '/app-music/static/styles.css',
+  '/app-music/static/manifest.json',
+  '/app-music/static/icons/icon.svg',
 ];
 
 self.addEventListener('install', (e) => {
@@ -36,7 +36,7 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  if (url.pathname.startsWith('/api/')) {
+  if (url.pathname.startsWith('/app-music/api/')) {
     e.respondWith(
       caches.match(e.request).then((cached) => {
         const fetched = fetch(e.request).then((res) => {

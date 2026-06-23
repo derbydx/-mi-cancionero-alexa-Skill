@@ -50,6 +50,15 @@ def init_offline_db():
         conn.execute("ALTER TABLE offline_tasks ADD COLUMN progress REAL DEFAULT 0")
     except Exception:
         pass
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS downloader_state (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    """)
+    conn.execute(
+        "INSERT OR IGNORE INTO downloader_state (key, value) VALUES ('paused', '1')"
+    )
     conn.commit()
     conn.close()
 
@@ -187,21 +196,42 @@ def list_all_tasks() -> list[dict]:
     return [dict(r) for r in rows]
 
 
-def ensure_download_tasks(songs: list[dict]):
+def get_downloader_paused() -> bool:
     conn = _get_db()
-    existing = set(
-        r["video_id"] for r in
-        conn.execute("SELECT video_id FROM offline_tasks").fetchall()
+    row = conn.execute(
+        "SELECT value FROM downloader_state WHERE key = 'paused'"
+    ).fetchone()
+    conn.close()
+    if row is None:
+        return True
+    return row["value"] == "1"
+
+
+def set_downloader_paused(paused: bool):
+    conn = _get_db()
+    conn.execute(
+        "INSERT OR REPLACE INTO downloader_state (key, value) VALUES ('paused', ?)",
+        ("1" if paused else "0",),
     )
-    for s in songs:
-        vid = s.get("video_id", "")
-        if vid and vid not in existing:
-            conn.execute(
-                "INSERT OR IGNORE INTO offline_tasks (video_id, title, artist, thumbnail) VALUES (?, ?, ?, ?)",
-                (vid, s.get("title", ""), s.get("artist", ""), s.get("thumbnail", "")),
-            )
     conn.commit()
     conn.close()
+
+
+def clear_completed_tasks() -> int:
+    conn = _get_db()
+    rows = conn.execute(
+        "SELECT filepath FROM offline_tasks WHERE status = 'complete'"
+    ).fetchall()
+    count = len(rows)
+    for row in rows:
+        if row["filepath"]:
+            fp = Path(row["filepath"])
+            if fp.exists():
+                fp.unlink()
+    conn.execute("DELETE FROM offline_tasks WHERE status = 'complete'")
+    conn.commit()
+    conn.close()
+    return count
 
 
 def retry_task(video_id: str) -> bool:

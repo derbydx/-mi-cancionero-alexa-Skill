@@ -207,15 +207,43 @@ def _embed_metadata(filepath: Path, title: str, artist: str):
         logger.warning("Failed to embed metadata: %s", e)
 
 
+async def check_paused(client: httpx.AsyncClient) -> bool:
+    try:
+        r = await client.get(f"{BACKEND_URL}/api/offline/downloader/paused", timeout=10)
+        if r.status_code == 200:
+            return r.json().get("paused", True)
+    except Exception as e:
+        logger.warning("Failed to check paused status: %s", e)
+    return True
+
+
+async def set_paused(client: httpx.AsyncClient, paused: bool):
+    try:
+        await client.post(
+            f"{BACKEND_URL}/api/offline/downloader/paused",
+            json={"paused": paused},
+            timeout=10,
+        )
+    except Exception as e:
+        logger.warning("Failed to set paused status: %s", e)
+
+
 async def main_loop():
     logger.info("Offline downloader started. Polling %s every %ds", BACKEND_URL, POLL_INTERVAL)
     async with httpx.AsyncClient() as client:
         while True:
             try:
+                paused = await check_paused(client)
+                if paused:
+                    await asyncio.sleep(30)
+                    continue
+
                 tasks = await fetch_pending(client)
                 for task in tasks:
                     await process_task(client, task)
                     await asyncio.sleep(1)
+
+                await set_paused(client, True)
             except Exception as e:
                 logger.error("Unexpected error in main loop: %s", e)
             await asyncio.sleep(POLL_INTERVAL)
