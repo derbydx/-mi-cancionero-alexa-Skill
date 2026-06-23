@@ -16,8 +16,8 @@ logger = logging.getLogger("offline-downloader")
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
 POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "10"))
-MAX_RETRIES = 3
-RETRY_DELAYS = [30, 120, 300]
+MAX_RETRIES = 2
+RETRY_DELAYS = [30]
 
 OFFLINE_DIR = Path(os.getenv("OFFLINE_DIR", "/app/data/offline"))
 OFFLINE_DIR.mkdir(parents=True, exist_ok=True)
@@ -86,12 +86,7 @@ async def process_task(client: httpx.AsyncClient, task: dict):
                             actual_title=title, actual_artist=artist)
     except Exception as e:
         logger.error("Download failed for %s: %s", vid, e)
-        attempt = task.get("attempts", 0)
-        if attempt >= MAX_RETRIES:
-            await report_status(client, tid, "failed", error=str(e))
-        else:
-            await report_status(client, tid, "pending",
-                                error=f"retry {attempt}: {e}")
+        await report_status(client, tid, "failed", error=str(e))
 
 
 async def report_progress(client: httpx.AsyncClient, task_id: int, progress: float):
