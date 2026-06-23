@@ -4,6 +4,7 @@ import uuid
 from queue_manager import queue_manager
 from config import settings
 from history_manager import mark_as_played
+from offline_manager import ensure_download_tasks
 
 
 def get_play_url(video_id: str) -> str:
@@ -72,6 +73,7 @@ async def _handle_intent(intent: dict) -> dict:
             return build_speech_response("Por favor, dime que cancion o artista quieres escuchar.")
         try:
             song = queue_manager.start_from_query(query)
+            ensure_download_tasks(queue_manager.get_queue()["queue"])
             url = get_play_url(song['video_id'])
             token = str(uuid.uuid4())
             return build_play_response(song["title"], song["artist"], url, token, 0,
@@ -85,6 +87,7 @@ async def _handle_intent(intent: dict) -> dict:
         song = queue_manager.skip()
         if song is None:
             return build_speech_response("No hay mas canciones en la cola.")
+        ensure_download_tasks(queue_manager.get_queue()["queue"])
         url = get_play_url(song['video_id'])
         return build_play_directive(url, str(uuid.uuid4()), 0, song.get('thumbnail'), song['title'], song['artist'])
 
@@ -147,6 +150,9 @@ async def _handle_intent(intent: dict) -> dict:
         text = f"Reproduciendo {items[q['current_index']].get('title')} de {items[q['current_index']].get('artist')}. "
         text += f"Siguen {', '.join(upcoming)}."
         return build_speech_response(text)
+
+    elif name == "AMAZON.FallbackIntent":
+        return build_speech_response("Di 'busca' seguido del nombre de la cancion o artista que quieras escuchar.")
 
     else:
         return build_speech_response("No entiendo ese comando.")

@@ -17,5 +17,6 @@ class Settings:
     skip_signature_verification: bool = field(
         default_factory=lambda: os.getenv("SKIP_SIGNATURE_VERIFICATION", "false").lower() == "true"
     )
+    app_password: str = field(default_factory=lambda: os.getenv("APP_PASSWORD", ""))
 
 settings = Settings()

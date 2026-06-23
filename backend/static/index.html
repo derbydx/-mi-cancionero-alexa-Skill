@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="AlexaMusic - Controla tu musica">
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/static/icons/icon.svg">
+  <link rel="apple-touch-icon" href="/static/icons/icon.svg">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="/static/styles.css?v=3">
+  <title>AlexaMusic</title>
+</head>
+<body>
+  <div id="app">
+
+    <header id="mobile-header">
+      <button id="menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+      <span class="brand-name">AlexaMusic</span>
+      <button id="queue-toggle" onclick="toggleQueuePanel()"><i class="fas fa-list"></i></button>
+    </header>
+
+    <aside id="sidebar-left">
+      <div class="branding">
+        <i class="fas fa-building"></i>
+        <span class="brand-name">AlexaMusic</span>
+      </div>
+      <nav class="nav-menu">
+        <a class="nav-item active" data-view="search" onclick="showView('search')">
+          <i class="fas fa-search"></i> Buscar
+        </a>
+        <a class="nav-item" data-view="favorites" onclick="showView('favorites')">
+          <i class="fas fa-heart"></i> Favoritos
+        </a>
+        <div class="nav-section-title">DISPOSITIVO</div>
+        <a class="nav-item" data-view="queue" onclick="showView('queue')">
+          <i class="fas fa-list"></i> Cola completa
+        </a>
+        <div class="nav-section-title">ALMACENAMIENTO</div>
+        <a class="nav-item" data-view="downloads" onclick="showView('downloads')">
+          <i class="fas fa-download"></i> Descargas
+        </a>
+      </nav>
+    </aside>
+
+    <main id="panel-center">
+      <div class="search-header" id="search-header">
+        <div class="search-input-wrapper">
+          <i class="fas fa-search"></i>
+          <input type="text" id="search-input" placeholder="Buscar cancion"
+                 onkeydown="if(event.key==='Enter') doSearch()">
+        </div>
+        <div class="offline-toggle">
+          <span>Offline</span>
+          <label class="switch">
+            <input type="checkbox" id="offline-switch">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="panel-tabs" id="panel-tabs">
+        <button class="tab active" data-tab="results" onclick="switchCenterTab('results')">Resultados</button>
+        <button class="tab" data-tab="favorites" onclick="switchCenterTab('favorites')">Favoritos</button>
+        <button class="tab" data-tab="reciente" onclick="switchCenterTab('reciente')">Reciente</button>
+      </div>
+
+      <div class="panel-content" id="panel-content">
+        <div id="tab-results" class="tab-content"></div>
+        <div id="tab-favorites" class="tab-content"></div>
+        <div id="tab-reciente" class="tab-content"></div>
+      </div>
+    </main>
+
+    <aside id="sidebar-right">
+      <div class="queue-header">
+        <h2>Cola</h2>
+        <div class="queue-actions">
+          <button class="btn-clear" onclick="clearQueue()">Limpiar</button>
+          <button class="btn-menu"><i class="fas fa-ellipsis-h"></i></button>
+        </div>
+      </div>
+      <div class="queue-list" id="queue-list"></div>
+    </aside>
+
+    <footer id="bottom-bar">
+      <div class="track-info" id="track-info">
+        <div class="track-thumb" id="track-thumb"><i class="fas fa-music"></i></div>
+        <div class="track-details">
+          <div class="track-title" id="track-title">Sin reproduccion</div>
+          <div class="track-artist" id="track-artist">-</div>
+        </div>
+      </div>
+      <div class="track-controls">
+        <button class="ctrl-btn" onclick="prevTrack()"><i class="fas fa-step-backward"></i></button>
+        <button class="ctrl-btn ctrl-play" id="play-btn" onclick="togglePlay()"><i class="fas fa-play"></i></button>
+        <button class="ctrl-btn" onclick="nextTrack()"><i class="fas fa-step-forward"></i></button>
+      </div>
+      <div class="track-progress" id="track-progress">
+        <span class="progress-time" id="progress-current">0:00</span>
+        <div class="progress-bar" id="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <span class="progress-time" id="progress-total">0:00</span>
+      </div>
+    </footer>
+  </div>
+
+  <div id="overlay" onclick="closePanels()"></div>
+
+  <script src="/static/app.js?v=3"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/static/sw.js').catch(function(e) {
+        console.warn('SW registration failed:', e);
+      });
+    }
+  </script>
+</body>
+</html>

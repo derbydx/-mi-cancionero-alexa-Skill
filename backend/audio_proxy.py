@@ -11,7 +11,7 @@ from fastapi.responses import Response
 
 logger = logging.getLogger(__name__)
 
-CACHE_DIR = Path(os.getenv("AUDIO_CACHE_DIR", "/tmp/alexa_audio_cache"))
+CACHE_DIR = Path(os.getenv("AUDIO_CACHE_DIR", "/app/data/cache"))
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 CACHE_MAX_AGE_SECONDS = int(os.getenv("AUDIO_CACHE_MAX_AGE", 3600))
 CACHE_MAX_FILES = int(os.getenv("AUDIO_CACHE_MAX_FILES", 20))

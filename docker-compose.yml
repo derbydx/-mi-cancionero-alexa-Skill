@@ -12,6 +12,18 @@ services:
       - SKIP_SIGNATURE_VERIFICATION=true
       - PROXY_BASE_URL=https://mimusica.xyz
 
+  offline-downloader:
+    build: .
+    command: python -m backend.offline_downloader
+    volumes:
+      - ./data:/app/data
+      - ./.env:/app/.env
+    restart: unless-stopped
+    environment:
+      - BACKEND_URL=http://backend:8000
+      - AUDIO_CACHE_DIR=/app/data/cache
+      - OFFLINE_DIR=/app/data/offline
+
   cloudflared:
     image: cloudflare/cloudflared:latest
     command: tunnel --protocol http2 --config /etc/cloudflared/config.yml run

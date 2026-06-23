@@ -97,6 +97,25 @@ class QueueManager:
     def is_looping(self) -> bool:
         return self._looping
 
+    def clear(self):
+        self._queue.clear()
+        self._index = 0
+        self._current_video_id = None
+        self._playback_offset = 0
+        self._playback_token = None
+
+    def add_song(self, song: dict) -> int:
+        if not self._queue:
+            self._queue = [song]
+            self._index = 0
+            self._current_video_id = song["video_id"]
+            self._playback_offset = 0
+            record_enqueued(song["video_id"], song.get("title", ""), song.get("artist", ""))
+            self._refill(song["video_id"])
+            return 0
+        self._queue.append(song)
+        record_enqueued(song["video_id"], song.get("title", ""), song.get("artist", ""))
+        return len(self._queue) - 1
 
     def set_playback_token(self, token: str):
         self._playback_token = token

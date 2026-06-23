@@ -8,8 +8,9 @@ load_dotenv()
 # Ensure backend/ directory is on the path for intra-package imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
+from fastapi import FastAPI, Request, Query
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from ask_sdk_webservice_support.verifier import (
     RequestVerifier,
     TimestampVerifier,
@@ -21,7 +22,22 @@ from alexa_handler import handle_alexa_request
 from queue_manager import queue_manager
 from audio_proxy import stream_audio, _get_duration
 from history_manager import init_db, get_history_page, get_all_history, get_total_count, find_duplicates, clean_duplicates
-from music_service import init_ytmusic
+from favorites_manager import init_favorites_db, get_favorites, add_favorite, remove_favorite, is_favorite
+from music_service import init_ytmusic, search_song
+from auth import init_auth, verify_password, check_token
+from offline_manager import (
+    init_offline_db,
+    create_offline_task,
+    get_pending_tasks,
+    update_task_status,
+    get_statuses_for_ids,
+    list_completed,
+    delete_offline,
+    get_task_status,
+    list_all_tasks,
+    retry_task,
+    ensure_download_tasks,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -30,10 +46,48 @@ app = FastAPI(title="Alexa Music Streaming")
 
 _verifiers = [RequestVerifier(), TimestampVerifier()]
 
+# ── Auth middleware ─────────────────────────────────────────────────────────
+
+UNPROTECTED_PATHS = [
+    "/alexa", "/proxy/audio/", "/health", "/api/login",
+    "/static/", "/privacy", "/terms", "/login",
+    "/api/offline/tasks/",
+]
+
+
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    path = request.url.path
+    if not settings.app_password:
+        return await call_next(request)
+
+    for prefix in UNPROTECTED_PATHS:
+        if path.startswith(prefix):
+            return await call_next(request)
+
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    if not token:
+        token = request.cookies.get("token")
+
+    if check_token(token):
+        return await call_next(request)
+
+    if path.startswith("/api/"):
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+
+    return RedirectResponse(url="/login")
+
 
 @app.on_event("startup")
 async def startup():
     init_db()
+    init_favorites_db()
+    init_offline_db()
+    if settings.app_password:
+        init_auth(settings.app_password)
+        logger.info("Auth initialized with password from env")
+    else:
+        logger.warning("APP_PASSWORD not set - web interface will have no auth")
     try:
         init_ytmusic()
         logger.info("YTMusic initialized")
@@ -329,6 +383,265 @@ async def queue():
 </body>
 </html>"""
     return HTMLResponse(content=html)
+
+
+# ── Static files & SPA ──────────────────────────────────────────────────────
+
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.isdir(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+
+@app.get("/")
+async def index():
+    path = os.path.join(static_dir, "index.html")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content="<h1>Mi Cancionero</h1><p>PWA no encontrada.</p>")
+
+
+# ── Auth ─────────────────────────────────────────────────────────────────────
+
+LOGIN_HTML = """<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi Cancionero - Acceso</title>
+<link rel="stylesheet" href="/static/styles.css?v=2">
+<style>
+  .login-page { display:flex; align-items:center; justify-content:center; height:100%; padding:20px; }
+  .login-box { background:var(--surface); padding:32px; border-radius:var(--radius); width:100%; max-width:360px; text-align:center; }
+  .login-box h1 { color:var(--primary); font-size:24px; margin-bottom:24px; }
+  .login-box input { width:100%; padding:12px 16px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--card); color:var(--text); font-size:16px; outline:none; margin-bottom:16px; }
+  .login-box input:focus { border-color:var(--primary); }
+  .login-box button { width:100%; padding:12px; background:var(--primary); color:#000; border:none; border-radius:var(--radius-sm); font-weight:600; font-size:16px; cursor:pointer; }
+  .login-box button:hover { background:var(--primary-dim); }
+  .login-box .error { color:var(--danger); font-size:14px; margin-top:12px; display:none; }
+</style>
+</head>
+<body>
+<div class="login-page">
+  <div class="login-box">
+    <h1>Mi Cancionero</h1>
+    <input type="password" id="pass" placeholder="Contrasena" autofocus
+           onkeydown="if(event.key==='Enter') login()">
+    <button onclick="login()">Entrar</button>
+    <div class="error" id="error">Contrasena incorrecta</div>
+  </div>
+</div>
+<script>
+async function login() {
+  const pass = document.getElementById('pass');
+  const err = document.getElementById('error');
+  err.style.display = 'none';
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({password: pass.value}),
+    });
+    const data = await res.json();
+    if (data.token) {
+      document.cookie = 'token=' + data.token + '; path=/; max-age=86400; SameSite=Lax';
+      window.location.href = '/';
+    } else {
+      err.textContent = 'Contrasena incorrecta';
+      err.style.display = 'block';
+    }
+  } catch(e) {
+    err.textContent = 'Error de conexion';
+    err.style.display = 'block';
+  }
+}
+</script>
+</body>
+</html>"""
+
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page():
+    return HTMLResponse(content=LOGIN_HTML)
+
+
+@app.post("/api/login")
+async def api_login(request: Request):
+    try:
+        body = await request.json()
+        password = body.get("password", "")
+        token = verify_password(password)
+        if token:
+            return {"token": token}
+        return JSONResponse(status_code=401, content={"error": "Invalid password"})
+    except Exception as e:
+        logger.error("Login error: %s", e)
+        return JSONResponse(status_code=400, content={"error": str(e)})
+
+
+# ── API: Search ──────────────────────────────────────────────────────────────
+
+@app.get("/api/search")
+async def api_search(q: str = Query(..., min_length=1)):
+    try:
+        from music_service import init_ytmusic
+        yt = init_ytmusic()
+        raw = yt.search(q, filter="songs", limit=10)
+        results = []
+        for r in raw:
+            results.append({
+                "video_id": r.get("videoId", ""),
+                "title": r.get("title", ""),
+                "artist": ", ".join(a.get("name", "") for a in r.get("artists", [])),
+                "thumbnail": r.get("thumbnails", [{}])[-1].get("url", ""),
+            })
+        return results
+    except Exception as e:
+        logger.error("Search error: %s", e)
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+# ── API: Queue ───────────────────────────────────────────────────────────────
+
+@app.get("/api/queue")
+async def api_queue():
+    return queue_manager.get_queue()
+
+
+@app.post("/api/queue")
+async def api_enqueue(request: Request):
+    try:
+        body = await request.json()
+        song = {
+            "video_id": body["video_id"],
+            "title": body.get("title", ""),
+            "artist": body.get("artist", ""),
+            "thumbnail": body.get("thumbnail", ""),
+        }
+        idx = queue_manager.add_song(song)
+        ensure_download_tasks(queue_manager.get_queue()["queue"])
+        return {"index": idx, "song": song}
+    except Exception as e:
+        logger.error("Enqueue error: %s", e)
+        return JSONResponse(status_code=400, content={"error": str(e)})
+
+
+@app.post("/api/queue/clear")
+async def api_clear_queue():
+    queue_manager.clear()
+    return {"ok": True}
+
+
+# ── API: Favorites ──────────────────────────────────────────────────────────
+
+@app.get("/api/favorites")
+async def api_favorites():
+    return get_favorites()
+
+
+@app.post("/api/favorites")
+async def api_add_favorite(request: Request):
+    try:
+        body = await request.json()
+        ok = add_favorite(
+            body["video_id"],
+            body.get("title", ""),
+            body.get("artist", ""),
+            body.get("thumbnail", ""),
+        )
+        return {"ok": ok}
+    except Exception as e:
+        logger.error("Add favorite error: %s", e)
+        return JSONResponse(status_code=400, content={"error": str(e)})
+
+
+@app.delete("/api/favorites/{video_id}")
+async def api_remove_favorite(video_id: str):
+    ok = remove_favorite(video_id)
+    return {"ok": ok}
+
+
+@app.get("/api/favorites/check/{video_id}")
+async def api_check_favorite(video_id: str):
+    return {"favorite": is_favorite(video_id)}
+
+
+# ── API: Offline / Download tasks ────────────────────────────────────────────
+
+
+@app.get("/api/offline/tasks/pending")
+async def api_offline_pending():
+    return get_pending_tasks(limit=5)
+
+
+@app.post("/api/offline/tasks/{task_id}/status")
+async def api_offline_update_status(task_id: int, request: Request):
+    try:
+        body = await request.json()
+        update_task_status(
+            task_id,
+            body.get("status", "pending"),
+            filepath=body.get("filepath", ""),
+            error=body.get("error", ""),
+            actual_title=body.get("actual_title", ""),
+            actual_artist=body.get("actual_artist", ""),
+        )
+        return {"ok": True}
+    except Exception as e:
+        logger.error("Offline status update error: %s", e)
+        return JSONResponse(status_code=400, content={"error": str(e)})
+
+
+@app.get("/api/offline")
+async def api_offline_list():
+    return list_completed()
+
+
+@app.get("/api/offline/check/{video_id}")
+async def api_offline_check(video_id: str):
+    status = get_task_status(video_id)
+    if status:
+        return {"video_id": video_id, "status": status["status"], "filepath": status.get("filepath", "")}
+    return {"video_id": video_id, "status": "none"}
+
+
+@app.get("/api/offline/statuses")
+async def api_offline_statuses(ids: str = Query("")):
+    if not ids.strip():
+        return {}
+    video_ids = [v.strip() for v in ids.split(",") if v.strip()]
+    return get_statuses_for_ids(video_ids)
+
+
+@app.delete("/api/offline/{video_id}")
+async def api_offline_delete(video_id: str):
+    removed = delete_offline(video_id)
+    return {"ok": True, "file_removed": removed}
+
+
+@app.get("/api/offline/tasks")
+async def api_offline_all_tasks():
+    return list_all_tasks()
+
+
+@app.post("/api/offline/{video_id}/retry")
+async def api_offline_retry(video_id: str):
+    ok = retry_task(video_id)
+    return {"ok": ok}
+
+
+@app.post("/api/offline/sync")
+async def api_offline_sync():
+    q = queue_manager.get_queue()
+    ensure_download_tasks(q["queue"])
+    return {"ok": True, "total": len(q["queue"])}
+
+
+# ── API: History ─────────────────────────────────────────────────────────────
+
+@app.get("/api/history")
+async def api_history(page: int = 1, page_size: int = 200):
+    return get_history_page(page, page_size)
 
 
 @app.get("/health")

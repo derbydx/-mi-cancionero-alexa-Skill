@@ -1,0 +1,19 @@
+{
+  "name": "Mi Cancionero",
+  "short_name": "Cancionero",
+  "description": "Controla tu musica de Alexa",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#121212",
+  "icons": [
+    {
+      "src": "/static/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["music", "entertainment"],
+  "lang": "es-MX"
+}
