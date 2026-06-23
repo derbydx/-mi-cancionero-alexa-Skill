@@ -876,11 +876,12 @@ html, body {
 
 .progress-bar-dl {
   display: inline-block;
+  position: relative;
   width: 80px;
   height: 4px;
   background: #e0e0e0;
   border-radius: 2px;
-  overflow: hidden;
+  overflow: visible;
   vertical-align: middle;
   margin-top: 2px;
 }
@@ -890,6 +891,25 @@ html, body {
   background: var(--primary);
   border-radius: 2px;
   transition: width 0.5s;
+}
+
+.cancel-dl-btn {
+  position: absolute;
+  right: -14px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--danger);
+  font-size: 12px;
+  padding: 2px;
+  opacity: 0.6;
+  line-height: 1;
+}
+
+.cancel-dl-btn:hover {
+  opacity: 1;
 }
 
 .dl-pct {
@@ -904,6 +924,30 @@ html, body {
   color: var(--text-muted);
   margin-top: 3px;
   white-space: nowrap;
+}
+
+.history-toolbar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.toolbar-btn {
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar-btn:hover {
+  background: var(--hover-bg);
 }
 
 /* ── Offline Badge & Queue Favorite Button ───────────────────────────────── */

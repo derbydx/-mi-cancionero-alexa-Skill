@@ -1,6 +1,9 @@
+import asyncio
 import logging
 import os
 import sys
+
+import httpx
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -171,7 +174,14 @@ async def health():
 
 @app.get("/api/offline/tasks/pending")
 async def api_offline_pending():
-    return get_pending_tasks(limit=5)
+    return get_pending_tasks(limit=20)
+
+
+@app.get("/api/offline/tasks/stuck")
+async def api_offline_stuck():
+    from offline_manager import reset_stuck_downloading_tasks
+    count = reset_stuck_downloading_tasks()
+    return {"reset": count}
 
 
 @app.post("/api/offline/tasks/{task_id}/status")
@@ -720,11 +730,34 @@ async def api_offline_downloader_status():
     return {"paused": get_downloader_paused()}
 
 
+# ── API: Cancel download ──────────────────────────────────────────────────
+
+@web.post("/api/offline/cancel")
+async def api_cancel_download():
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.post("http://offline-downloader:8001/cancel", timeout=5)
+            return r.json()
+    except Exception as e:
+        logger.error("Cancel download error: %s", e)
+        return {"ok": False, "error": str(e)}
+
+
 # ── API: History ──────────────────────────────────────────────────────────
 
 @web.get("/api/history")
 async def api_history(page: int = 1, page_size: int = 200):
     return get_history_page(page, page_size)
+
+
+@web.post("/api/history/dedup")
+async def api_history_dedup():
+    try:
+        removed = clean_duplicates()
+        return {"ok": True, "removed": removed}
+    except Exception as e:
+        logger.error("History dedup error: %s", e)
+        return JSONResponse(status_code=400, content={"error": str(e)})
 
 
 # ═════════════════════════════════════════════════════════════════════════════

@@ -8,8 +8,34 @@ import subprocess
 from pathlib import Path
 
 import httpx
+import uvicorn
+from fastapi import FastAPI
 
 from backend.offline_manager import cache_path_for, offline_path_for, get_task_status
+
+current_proc = None
+cancel_requested = False
+
+cancel_app = FastAPI()
+
+@cancel_app.post("/cancel")
+async def handle_cancel():
+    global current_proc, cancel_requested
+    cancel_requested = True
+    if current_proc:
+        try:
+            current_proc.kill()
+            await asyncio.wait_for(current_proc.wait(), timeout=5)
+        except Exception:
+            pass
+        current_proc = None
+        logger.info("Download cancelled via /cancel endpoint")
+    return {"ok": True}
+
+async def run_cancel_server():
+    config = uvicorn.Config(cancel_app, host="0.0.0.0", port=8001, log_level="warning")
+    server = uvicorn.Server(config)
+    await server.serve()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("offline-downloader")
@@ -70,6 +96,7 @@ async def process_task(client: httpx.AsyncClient, task: dict):
     logger.info("Processing task %d: %s - %s", tid, artist, title)
 
     await report_status(client, tid, "downloading")
+    await report_progress(client, tid, 0)
 
     existing = file_exists_in_offline(vid)
     if existing:
@@ -162,12 +189,18 @@ async def download_song(client: httpx.AsyncClient, task_id: int, video_id: str, 
     last_report = 0.0
 
     for attempt in range(MAX_RETRIES):
+        global current_proc, cancel_requested
+        if cancel_requested:
+            cancel_requested = False
+            raise RuntimeError("Cancelled by user")
+
         logger.info("yt-dlp attempt %d/%d for %s", attempt + 1, MAX_RETRIES, video_id)
         proc = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
+        current_proc = proc
 
         stderr_lines = []
         last_progress = 0.0
@@ -200,6 +233,7 @@ async def download_song(client: httpx.AsyncClient, task_id: int, video_id: str, 
 
                 await proc.wait()
         except asyncio.TimeoutError:
+            current_proc = None
             proc.kill()
             await proc.wait()
             tmp.unlink(missing_ok=True)
@@ -208,6 +242,7 @@ async def download_song(client: httpx.AsyncClient, task_id: int, video_id: str, 
                 await asyncio.sleep(RETRY_DELAYS[attempt])
             continue
 
+        current_proc = None
         if proc.returncode == 0 and tmp.exists():
             await report_progress(client, task_id, 100)
             _embed_metadata(tmp, title, artist)
@@ -216,9 +251,14 @@ async def download_song(client: httpx.AsyncClient, task_id: int, video_id: str, 
             logger.info("Downloaded: %s (%.1f KB)", dest.name, size_kb)
             return dest
 
+        current_proc = None
         stderr_text = "\n".join(stderr_lines[-10:])[:500]
         logger.warning("yt-dlp attempt %d failed: %s", attempt + 1, stderr_text)
         tmp.unlink(missing_ok=True)
+
+        if cancel_requested:
+            cancel_requested = False
+            raise RuntimeError("Cancelled by user")
 
         if attempt < MAX_RETRIES - 1:
             wait = RETRY_DELAYS[attempt]
@@ -263,9 +303,19 @@ async def set_paused(client: httpx.AsyncClient, paused: bool):
         logger.warning("Failed to set paused status: %s", e)
 
 
+async def reset_stuck_tasks(client: httpx.AsyncClient):
+    try:
+        r = await client.get(f"{BACKEND_URL}/api/offline/tasks/stuck", timeout=10)
+        data = r.json()
+        if data.get("reset", 0) > 0:
+            logger.info("Reset %d stuck tasks to failed", data["reset"])
+    except Exception as e:
+        logger.warning("Failed to reset stuck tasks: %s", e)
+
 async def main_loop():
     logger.info("Offline downloader started. Polling %s every %ds", BACKEND_URL, POLL_INTERVAL)
     async with httpx.AsyncClient() as client:
+        await reset_stuck_tasks(client)
         while True:
             try:
                 paused = await check_paused(client)
@@ -278,11 +328,15 @@ async def main_loop():
                     await process_task(client, task)
                     await asyncio.sleep(1)
 
-                await set_paused(client, True)
+                if not tasks:
+                    await set_paused(client, True)
             except Exception as e:
                 logger.error("Unexpected error in main loop: %s", e)
             await asyncio.sleep(POLL_INTERVAL)
 
 
 if __name__ == "__main__":
-    asyncio.run(main_loop())
+    async def run_all():
+        await asyncio.gather(main_loop(), run_cancel_server())
+
+    asyncio.run(run_all())

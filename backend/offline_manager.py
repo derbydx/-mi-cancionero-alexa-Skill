@@ -202,6 +202,17 @@ def _sanitize_filename(name: str) -> str:
     return name[:100] if name else "unknown"
 
 
+def reset_stuck_downloading_tasks() -> int:
+    conn = _get_db()
+    cur = conn.execute(
+        "UPDATE offline_tasks SET status='failed', error='Stuck: reinicia la descarga' WHERE status='downloading' AND progress=0"
+    )
+    conn.commit()
+    count = cur.rowcount
+    conn.close()
+    return count
+
+
 def list_all_tasks() -> list[dict]:
     conn = _get_db()
     rows = conn.execute(
@@ -252,7 +263,7 @@ def clear_completed_tasks() -> int:
 def retry_task(video_id: str) -> bool:
     conn = _get_db()
     conn.execute(
-        "UPDATE offline_tasks SET status='pending', error='', attempts=0 WHERE video_id=? AND status='failed'",
+        "UPDATE offline_tasks SET status='pending', error='', attempts=0 WHERE video_id=? AND (status='failed' OR status='downloading')",
         (video_id,)
     )
     affected = conn.execute("SELECT changes()").fetchone()[0]

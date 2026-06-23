@@ -168,6 +168,7 @@ async function fetchHistory(page) {
   const data = await api(`/app-music/api/history?page=${page || 1}&page_size=50`);
   if (data) {
     state.historyData = data;
+    await fetchOfflineStatuses();
     renderReciente();
   }
 }
@@ -528,17 +529,29 @@ function renderReciente() {
     return;
   }
 
-  let html = `<p style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">
+  let html = `<div class="history-toolbar">
+      <button class="toolbar-btn" onclick="dedupHistory()"><i class="fas fa-broom"></i> Limpiar duplicados</button>
+      <button class="toolbar-btn" onclick="downloadHistory()"><i class="fas fa-download"></i> Descargar historial</button>
+    </div>`;
+
+  html += `<p style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">
     ${data.total} canciones &middot; Pagina ${data.page} de ${data.total_pages}</p>`;
+
+  const offlineStatuses = state.offlineStatuses || {};
 
   data.items.forEach(s => {
     const played = s.played === 1;
+    const isOffline = offlineStatuses[s.video_id] === 'complete';
+    const badge = isOffline
+      ? '<i class="fas fa-check-circle" style="color:var(--primary);font-size:14px;" title="Descargada"></i>'
+      : `<button class="action-btn" onclick="downloadSongFromHistory('${escAttr(s.video_id)}','${escAttr(s.title)}','${escAttr(s.artist)}')" title="Descargar"><i class="fas fa-download"></i></button>`;
     html += `<div class="song-row">
         <div class="info">
           <div class="title">${esc(s.title)}</div>
           <div class="artist">${esc(s.artist)}</div>
         </div>
         <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${played?'#e8f5e9':'#f5f5f5'};color:${played?'var(--primary)':'var(--text-muted)'};font-weight:500;">${played?'Reproducida':'En cola'}</span>
+        ${badge}
       </div>`;
   });
 
@@ -572,6 +585,67 @@ async function clearCompleted() {
   if (res && res.ok) {
     showToast(res.removed + ' descargas eliminadas');
     fetchDownloadTasks();
+  }
+}
+
+async function cancelDownload() {
+  const res = await api('/app-music/api/offline/cancel', { method: 'POST' });
+  if (res && res.ok) {
+    showToast('Descarga cancelada');
+  } else {
+    showToast('Error al cancelar');
+  }
+}
+
+async function downloadHistory() {
+  const data = state.historyData;
+  if (!data || !data.items || data.items.length === 0) {
+    showToast('Historial vacio');
+    return;
+  }
+  const ids = data.items.map(s => s.video_id).filter(Boolean);
+  if (ids.length === 0) return;
+  const statuses = await api('/app-music/api/offline/statuses?ids=' + ids.join(','));
+  let count = 0;
+  for (const s of data.items) {
+    if (!s.video_id) continue;
+    if (statuses && statuses[s.video_id] === 'complete') continue;
+    await api('/app-music/api/offline/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ video_id: s.video_id, title: s.title, artist: s.artist, thumbnail: '' }),
+    });
+    count++;
+  }
+  showToast(count + ' canciones agregadas a descargas');
+  fetchDownloadTasks();
+  await resumeDownloader();
+}
+
+async function downloadSongFromHistory(videoId, title, artist) {
+  await api('/app-music/api/offline/tasks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ video_id: videoId, title: title, artist: artist, thumbnail: '' }),
+  });
+  showToast('Agregada a descargas');
+  fetchDownloadTasks();
+}
+
+async function fetchOfflineStatuses() {
+  const data = state.historyData;
+  if (!data || !data.items || data.items.length === 0) return;
+  const ids = data.items.map(s => s.video_id).filter(Boolean);
+  if (ids.length === 0) return;
+  const statuses = await api('/app-music/api/offline/statuses?ids=' + ids.join(','));
+  state.offlineStatuses = statuses || {};
+}
+
+async function dedupHistory() {
+  const res = await api('/app-music/api/history/dedup', { method: 'POST' });
+  if (res && res.ok) {
+    showToast(res.removed + ' duplicados eliminados');
+    fetchHistory(1);
   }
 }
 
@@ -650,7 +724,7 @@ function renderDlTask(t) {
     : t.status === 'complete' ? '<i class="fas fa-check-circle" style="color:var(--primary)"></i>'
     : '<i class="fas fa-exclamation-circle" style="color:var(--danger)"></i>';
 
-  const actions = t.status === 'failed'
+  const actions = t.status === 'failed' || t.status === 'downloading'
     ? `<button class="action-btn" onclick="retryDownload('${escAttr(t.video_id)}')" title="Reintentar"><i class="fas fa-redo"></i></button>`
     : t.status === 'complete'
     ? `<button class="action-btn danger" onclick="deleteOffline('${escAttr(t.video_id)}')" title="Eliminar"><i class="fas fa-trash"></i></button>`
@@ -661,15 +735,16 @@ function renderDlTask(t) {
     : '';
 
   let dlInfo = '';
-  if (t.status === 'downloading' && t.progress > 0) {
+  if (t.status === 'downloading') {
     const total = t.total_mb > 0 ? (t.total_mb >= 1000 ? (t.total_mb/1024).toFixed(1)+' GB' : Math.round(t.total_mb)+' MB') : '';
     const speed = t.speed_mb_s > 0 ? t.speed_mb_s.toFixed(2)+' MB/s' : '';
     const eta = t.eta ? t.eta : '';
     const parts = [total, speed, eta ? 'ETA '+eta : ''].filter(Boolean);
     dlInfo = '<div class="dl-info">'+parts.join(' &middot; ')+'</div>';
   }
-  const progressHtml = t.status === 'downloading' && t.progress > 0
-    ? `<div class="progress-bar-dl"><div class="progress-fill-dl" style="width:${Math.min(t.progress, 100)}%"></div></div><span class="dl-pct">${Math.round(t.progress)}%</span>${dlInfo}`
+  const progressPct = t.status === 'downloading' ? Math.min(Math.max(t.progress, 0), 100) : 0;
+  const progressHtml = t.status === 'downloading'
+    ? `<div class="progress-bar-dl"><div class="progress-fill-dl" style="width:${progressPct}%"></div><button class="cancel-dl-btn" onclick="cancelDownload()" title="Cancelar descarga"><i class="fas fa-times-circle"></i></button></div><span class="dl-pct">${Math.round(progressPct)}%</span>${dlInfo}`
     : '';
 
   return `<div class="song-row">

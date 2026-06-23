@@ -1,4 +1,4 @@
-const CACHE = 'cancionero-v1';
+const CACHE = 'cancionero-v3';
 const ASSETS = [
   '/app-music/',
   '/app-music/static/index.html',
@@ -31,23 +31,20 @@ self.addEventListener('fetch', (e) => {
 
   if (ASSETS.includes(url.pathname)) {
     e.respondWith(
-      caches.match(e.request).then((cached) => cached || fetch(e.request))
+      fetch(e.request).catch(() => caches.match(e.request))
     );
     return;
   }
 
   if (url.pathname.startsWith('/app-music/api/')) {
     e.respondWith(
-      caches.match(e.request).then((cached) => {
-        const fetched = fetch(e.request).then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((cache) => cache.put(e.request, copy));
-          return res;
-        });
-        return fetched.catch(() => cached || new Response('{"error":"offline"}', {
-          status: 503, headers: { 'Content-Type': 'application/json' },
-        }));
-      })
+      fetch(e.request).then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE).then((cache) => cache.put(e.request, copy));
+        return res;
+      }).catch(() => caches.match(e.request).then((cached) => cached || new Response('{"error":"offline"}', {
+        status: 503, headers: { 'Content-Type': 'application/json' },
+      })))
     );
     return;
   }
