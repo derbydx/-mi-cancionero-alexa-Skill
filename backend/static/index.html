@@ -9,7 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="/static/icons/icon.svg">
   <link rel="apple-touch-icon" href="/static/icons/icon.svg">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="/static/styles.css?v=3">
+  <link rel="stylesheet" href="/static/styles.css?v=4">
   <title>AlexaMusic</title>
 </head>
 <body>
@@ -78,7 +78,7 @@
         <h2>Cola</h2>
         <div class="queue-actions">
           <button class="btn-clear" onclick="clearQueue()">Limpiar</button>
-          <button class="btn-menu"><i class="fas fa-ellipsis-h"></i></button>
+          <button class="btn-dl-queue" onclick="syncDownloads()" title="Descargar toda la cola"><i class="fas fa-download"></i></button>
         </div>
       </div>
       <div class="queue-list" id="queue-list"></div>
@@ -109,7 +109,7 @@
 
   <div id="overlay" onclick="closePanels()"></div>
 
-  <script src="/static/app.js?v=3"></script>
+  <script src="/static/app.js?v=4"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/static/sw.js').catch(function(e) {

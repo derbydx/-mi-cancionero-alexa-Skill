@@ -411,6 +411,26 @@ html, body {
   color: var(--danger);
 }
 
+.btn-dl-queue {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-dl-queue:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
 .btn-menu {
   width: 32px;
   height: 32px;
@@ -805,6 +825,31 @@ html, body {
 .dl-meta {
   font-size: 10px;
   color: var(--text-muted);
+}
+
+.progress-bar-dl {
+  display: inline-block;
+  width: 80px;
+  height: 4px;
+  background: #e0e0e0;
+  border-radius: 2px;
+  overflow: hidden;
+  vertical-align: middle;
+  margin-top: 2px;
+}
+
+.progress-fill-dl {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 2px;
+  transition: width 0.5s;
+}
+
+.dl-pct {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-left: 4px;
+  vertical-align: middle;
 }
 
 /* ── Offline Badge & Queue Favorite Button ───────────────────────────────── */

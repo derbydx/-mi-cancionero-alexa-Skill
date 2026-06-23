@@ -40,11 +40,16 @@ def init_offline_db():
             actual_artist TEXT,
             error TEXT,
             attempts INTEGER DEFAULT 0,
+            progress REAL DEFAULT 0,
             created_at TEXT DEFAULT (datetime('now')),
             completed_at TEXT
         )
     """)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_status ON offline_tasks(status)")
+    try:
+        conn.execute("ALTER TABLE offline_tasks ADD COLUMN progress REAL DEFAULT 0")
+    except Exception:
+        pass
     conn.commit()
     conn.close()
 
@@ -80,15 +85,22 @@ def update_task_status(task_id: int, status: str, filepath: str = "", error: str
     now = time.strftime("%Y-%m-%d %H:%M:%S")
     if status == "complete":
         conn.execute(
-            "UPDATE offline_tasks SET status=?, filepath=?, actual_title=?, actual_artist=?, completed_at=? WHERE id=?",
+            "UPDATE offline_tasks SET status=?, filepath=?, actual_title=?, actual_artist=?, progress=100, completed_at=? WHERE id=?",
             (status, filepath, actual_title, actual_artist, now, task_id),
         )
     elif status == "downloading":
-        conn.execute("UPDATE offline_tasks SET status=?, attempts=attempts+1 WHERE id=?", (status, task_id))
+        conn.execute("UPDATE offline_tasks SET status=?, attempts=attempts+1, progress=0 WHERE id=?", (status, task_id))
     elif status == "failed":
         conn.execute("UPDATE offline_tasks SET status=?, error=? WHERE id=?", (status, error, task_id))
     else:
         conn.execute("UPDATE offline_tasks SET status=? WHERE id=?", (status, task_id))
+    conn.commit()
+    conn.close()
+
+
+def update_task_progress(task_id: int, progress: float):
+    conn = _get_db()
+    conn.execute("UPDATE offline_tasks SET progress=? WHERE id=?", (progress, task_id))
     conn.commit()
     conn.close()
 

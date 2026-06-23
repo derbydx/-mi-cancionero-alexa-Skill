@@ -25,11 +25,13 @@ from history_manager import init_db, get_history_page, get_all_history, get_tota
 from favorites_manager import init_favorites_db, get_favorites, add_favorite, remove_favorite, is_favorite
 from music_service import init_ytmusic, search_song
 from auth import init_auth, verify_password, check_token
+from queue_db import init_queue_db
 from offline_manager import (
     init_offline_db,
     create_offline_task,
     get_pending_tasks,
     update_task_status,
+    update_task_progress,
     get_statuses_for_ids,
     list_completed,
     delete_offline,
@@ -82,6 +84,7 @@ async def auth_middleware(request: Request, call_next):
 async def startup():
     init_db()
     init_favorites_db()
+    init_queue_db()
     init_offline_db()
     if settings.app_password:
         init_auth(settings.app_password)
@@ -589,6 +592,17 @@ async def api_offline_update_status(task_id: int, request: Request):
         return {"ok": True}
     except Exception as e:
         logger.error("Offline status update error: %s", e)
+        return JSONResponse(status_code=400, content={"error": str(e)})
+
+
+@app.post("/api/offline/tasks/{task_id}/progress")
+async def api_offline_progress(task_id: int, request: Request):
+    try:
+        body = await request.json()
+        update_task_progress(task_id, float(body.get("progress", 0)))
+        return {"ok": True}
+    except Exception as e:
+        logger.error("Offline progress update error: %s", e)
         return JSONResponse(status_code=400, content={"error": str(e)})
 
 

@@ -578,10 +578,15 @@ function renderDlTask(t) {
     ? `<div class="dl-error">${esc(t.error)}</div>`
     : '';
 
+  const progressHtml = t.status === 'downloading' && t.progress > 0
+    ? `<div class="progress-bar-dl"><div class="progress-fill-dl" style="width:${Math.min(t.progress, 100)}%"></div></div><span class="dl-pct">${Math.round(t.progress)}%</span>`
+    : '';
+
   return `<div class="song-row">
     <div class="info">
       <div class="title"><span class="dl-status-icon">${statusIcon}</span> ${esc(t.actual_title || t.title)}</div>
       <div class="artist">${esc(t.actual_artist || t.artist)}${t.status === 'pending' ? ' <span class="dl-meta">' + (t.created_at || '') + '</span>' : ''}</div>
+      ${progressHtml}
       ${subtitle}
     </div>
     <div class="actions">${actions}</div>
