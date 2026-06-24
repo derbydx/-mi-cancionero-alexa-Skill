@@ -28,7 +28,7 @@ from favorites_manager import init_favorites_db, get_favorites, add_favorite, re
 from music_service import init_ytmusic, search_song
 from auth import init_auth, verify_password, check_token, rate_limiter
 from queue_db import init_queue_db
-from web_player import web_router
+from web_player import web_router, init_web_queue_db
 from offline_manager import (
     init_offline_db,
     create_offline_task,
@@ -97,6 +97,7 @@ async def startup():
     init_favorites_db()
     init_queue_db()
     init_offline_db()
+    init_web_queue_db()
     if settings.app_password:
         init_auth(settings.app_password)
         logger.info("Auth initialized with password from env")
