@@ -107,6 +107,20 @@ async def process_task(client: httpx.AsyncClient, task: dict):
         return
 
     try:
+        r = await client.get(f"{BACKEND_URL}/api/offline/downloader/check/{vid}", timeout=5)
+        if r.status_code == 200:
+            data = r.json()
+            if data.get("status") == "complete":
+                fp = data.get("filepath", "")
+                logger.info("Task already completed in DB (file may have been moved), skipping: %s", vid)
+                await report_status(client, tid, "complete",
+                                    filepath=fp or str(existing) if existing else "",
+                                    actual_title=title, actual_artist=artist)
+                return
+    except Exception as e:
+        logger.warning("Backend check failed for %s: %s", vid, e)
+
+    try:
         filepath = await download_song(client, tid, vid, title, artist)
         await report_status(client, tid, "complete",
                             filepath=str(filepath),

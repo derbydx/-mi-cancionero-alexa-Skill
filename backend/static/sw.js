@@ -1,4 +1,4 @@
-const CACHE = 'cancionero-v3';
+const CACHE = 'cancionero-v4';
 const ASSETS = [
   '/app-music/',
   '/app-music/static/index.html',

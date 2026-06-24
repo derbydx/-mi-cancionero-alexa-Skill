@@ -219,6 +219,14 @@ async def api_offline_progress(task_id: int, request: Request):
         return JSONResponse(status_code=400, content={"error": str(e)})
 
 
+@app.get("/api/offline/downloader/check/{video_id}")
+async def api_offline_downloader_check(video_id: str):
+    status = get_task_status(video_id)
+    if status:
+        return {"status": status["status"], "filepath": status.get("filepath", "")}
+    return {"status": "none"}
+
+
 @app.get("/api/offline/downloader/paused")
 async def api_offline_downloader_paused_root():
     return {"paused": get_downloader_paused()}
