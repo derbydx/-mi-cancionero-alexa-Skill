@@ -243,14 +243,6 @@ async function fetchOfflineStatuses() {
   }
 }
 
-async function deleteOffline(videoId) {
-  if (!confirm('Eliminar descarga offline?')) return;
-  const res = await api(`/app-music/api/offline/${videoId}`, { method: 'DELETE' });
-  if (res && res.ok) {
-    showToast('Eliminado');
-    fetchDownloadTasks();
-  }
-}
 
 async function markForDownload(song) {
   const res = await api('/app-music/api/offline/tasks', {
@@ -580,13 +572,6 @@ async function retryDownload(videoId) {
   }
 }
 
-async function clearCompleted() {
-  const res = await api('/app-music/api/offline/clear-completed', { method: 'POST' });
-  if (res && res.ok) {
-    showToast(res.removed + ' descargas eliminadas');
-    fetchDownloadTasks();
-  }
-}
 
 async function cancelDownload() {
   const res = await api('/app-music/api/offline/cancel', { method: 'POST' });
@@ -686,9 +671,6 @@ function renderDownloadManager() {
 
   let html = '<div class="dl-toolbar">';
   html += '<button class="btn-sync" onclick="resumeDownloader()"><i class="fas fa-download"></i> Descargar pendientes</button>';
-  if (completed.length > 0) {
-    html += '<button class="btn-sync" onclick="clearCompleted()" style="margin-left:6px;"><i class="fas fa-trash"></i> Limpiar completadas</button>';
-  }
   html += '</div>';
 
   if (downloading.length > 0) {
@@ -726,8 +708,6 @@ function renderDlTask(t) {
 
   const actions = t.status === 'failed' || t.status === 'downloading'
     ? `<button class="action-btn" onclick="retryDownload('${escAttr(t.video_id)}')" title="Reintentar"><i class="fas fa-redo"></i></button>`
-    : t.status === 'complete'
-    ? `<button class="action-btn danger" onclick="deleteOffline('${escAttr(t.video_id)}')" title="Eliminar"><i class="fas fa-trash"></i></button>`
     : '';
 
   const subtitle = t.status === 'failed' && t.error

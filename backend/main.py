@@ -43,10 +43,7 @@ from offline_manager import (
     clear_completed_tasks,
     get_downloader_paused,
     set_downloader_paused,
-    OFFLINE_DIR,
-    offline_path_for,
 )
-from genre_lookup import lookup_genre
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -761,52 +758,6 @@ async def api_history_dedup():
     except Exception as e:
         logger.error("History dedup error: %s", e)
         return JSONResponse(status_code=400, content={"error": str(e)})
-
-
-@web.post("/api/offline/reorganize")
-async def api_offline_reorganize():
-    from pathlib import Path
-    conn = None
-    moved = 0
-    skipped = 0
-    try:
-        from offline_manager import _get_db as _get_offline_db
-        conn = _get_offline_db()
-        rows = conn.execute(
-            "SELECT id, video_id, title, artist, filepath FROM offline_tasks WHERE status='complete'"
-        ).fetchall()
-        conn.close()
-        conn = None
-
-        for row in rows:
-            vid = row["video_id"]
-            title = row["title"] or ""
-            artist = row["artist"] or ""
-            old_fp = row["filepath"]
-            if old_fp and Path(old_fp).exists():
-                genre = await lookup_genre(artist, title)
-                new_fp = offline_path_for(vid, title, artist, genre=genre)
-                if str(new_fp) == old_fp:
-                    skipped += 1
-                    continue
-                new_fp.parent.mkdir(parents=True, exist_ok=True)
-                Path(old_fp).rename(new_fp)
-                conn = _get_offline_db()
-                conn.execute(
-                    "UPDATE offline_tasks SET filepath=? WHERE id=?",
-                    (str(new_fp), row["id"]),
-                )
-                conn.commit()
-                conn.close()
-                conn = None
-                moved += 1
-    except Exception as e:
-        logger.error("Reorganize error: %s", e)
-        return JSONResponse(status_code=400, content={"error": str(e)})
-    finally:
-        if conn:
-            conn.close()
-    return {"ok": True, "moved": moved, "skipped": skipped}
 
 
 # ═════════════════════════════════════════════════════════════════════════════
