@@ -3,8 +3,9 @@ import os
 import sqlite3
 import time
 
+import os
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from music_service import init_ytmusic, get_watch_playlist
 
@@ -199,6 +200,17 @@ class WebQueueManager:
 
 
 web_queue = WebQueueManager()
+
+
+# ── Serve frontend ────────────────────────────────────────────────────────
+
+@web_router.get("/")
+async def web_player_index():
+    path = os.path.join(os.path.dirname(__file__), "static", "web-player", "index.html")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content="<h1>Web Player</h1><p>Frontend no encontrado.</p>")
 
 
 # ── API endpoints ─────────────────────────────────────────────────────────
