@@ -874,16 +874,19 @@ html, body {
   color: var(--text-muted);
 }
 
+.dl-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
 .progress-bar-dl {
-  display: inline-block;
-  position: relative;
-  width: 80px;
+  flex: 0 0 80px;
   height: 4px;
   background: #e0e0e0;
   border-radius: 2px;
-  overflow: visible;
-  vertical-align: middle;
-  margin-top: 2px;
+  overflow: hidden;
 }
 
 .progress-fill-dl {
@@ -894,18 +897,16 @@ html, body {
 }
 
 .cancel-dl-btn {
-  position: absolute;
-  right: -14px;
-  top: 50%;
-  transform: translateY(-50%);
   background: none;
   border: none;
   cursor: pointer;
   color: var(--danger);
-  font-size: 12px;
-  padding: 2px;
-  opacity: 0.6;
+  font-size: 14px;
+  padding: 0;
+  opacity: 0.5;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
 }
 
 .cancel-dl-btn:hover {
@@ -915,14 +916,11 @@ html, body {
 .dl-pct {
   font-size: 10px;
   color: var(--text-muted);
-  margin-left: 4px;
-  vertical-align: middle;
 }
 
 .dl-info {
   font-size: 10px;
   color: var(--text-muted);
-  margin-top: 3px;
   white-space: nowrap;
 }
 

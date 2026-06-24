@@ -744,7 +744,7 @@ function renderDlTask(t) {
   }
   const progressPct = t.status === 'downloading' ? Math.min(Math.max(t.progress, 0), 100) : 0;
   const progressHtml = t.status === 'downloading'
-    ? `<div class="progress-bar-dl"><div class="progress-fill-dl" style="width:${progressPct}%"></div><button class="cancel-dl-btn" onclick="cancelDownload()" title="Cancelar descarga"><i class="fas fa-times-circle"></i></button></div><span class="dl-pct">${Math.round(progressPct)}%</span>${dlInfo}`
+    ? `<div class="dl-progress-row"><div class="progress-bar-dl"><div class="progress-fill-dl" style="width:${progressPct}%"></div></div><span class="dl-pct">${Math.round(progressPct)}%</span><button class="cancel-dl-btn" onclick="cancelDownload()" title="Cancelar descarga"><i class="fas fa-times-circle"></i></button></div>${dlInfo}`
     : '';
 
   return `<div class="song-row">

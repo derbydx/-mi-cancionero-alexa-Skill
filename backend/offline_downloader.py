@@ -12,6 +12,7 @@ import uvicorn
 from fastapi import FastAPI
 
 from backend.offline_manager import cache_path_for, offline_path_for, get_task_status
+from backend.genre_lookup import lookup_genre
 
 current_proc = None
 cancel_requested = False
@@ -108,6 +109,13 @@ async def process_task(client: httpx.AsyncClient, task: dict):
 
     try:
         filepath = await download_song(client, tid, vid, title, artist)
+        genre = await lookup_genre(artist, title)
+        if genre and genre not in ("Unknown", "unknown", ""):
+            new_fp = offline_path_for(vid, title, artist, genre=genre)
+            new_fp.parent.mkdir(parents=True, exist_ok=True)
+            if str(new_fp) != str(filepath):
+                filepath.rename(new_fp)
+                filepath = new_fp
         await report_status(client, tid, "complete",
                             filepath=str(filepath),
                             actual_title=title, actual_artist=artist)
@@ -165,12 +173,16 @@ async def download_song(client: httpx.AsyncClient, task_id: int, video_id: str, 
     cached = cache_path_for(video_id)
     if cached.exists():
         logger.info("Copying from cache: %s", cached)
-        dest = offline_path_for(video_id, title, artist)
+        genre = await lookup_genre(artist, title)
+        dest = offline_path_for(video_id, title, artist, genre=genre)
+        dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(cached, dest)
         _embed_metadata(dest, title, artist)
         return dest
 
-    dest = offline_path_for(video_id, title, artist)
+    genre = await lookup_genre(artist, title)
+    dest = offline_path_for(video_id, title, artist, genre=genre)
+    dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_suffix(".tmp.m4a")
 
     cmd = [

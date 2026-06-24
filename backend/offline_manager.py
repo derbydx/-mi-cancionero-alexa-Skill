@@ -187,12 +187,15 @@ def cache_path_for(video_id: str) -> Path:
     return CACHE_DIR / f"{safe}_{video_id}.m4a"
 
 
-def offline_path_for(video_id: str, title: str = "", artist: str = "") -> Path:
+def offline_path_for(video_id: str, title: str = "", artist: str = "", genre: str = "") -> Path:
     safe_title = _sanitize_filename(title or "unknown")
     safe_artist = _sanitize_filename(artist or "unknown")
     name = f"{safe_artist} - {safe_title}.m4a"
     if len(name) > 220:
         name = name[:215] + ".m4a"
+    if genre and genre not in ("Unknown", "unknown", ""):
+        safe_genre = _sanitize_filename(genre)
+        return OFFLINE_DIR / safe_genre / name
     return OFFLINE_DIR / name
 
 
