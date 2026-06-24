@@ -26,7 +26,7 @@ from audio_proxy import stream_audio, _get_duration
 from history_manager import init_db, get_history_page, get_all_history, get_total_count, find_duplicates, clean_duplicates
 from favorites_manager import init_favorites_db, get_favorites, add_favorite, remove_favorite, is_favorite
 from music_service import init_ytmusic, search_song
-from auth import init_auth, verify_password, check_token
+from auth import init_auth, verify_password, check_token, rate_limiter
 from queue_db import init_queue_db
 from offline_manager import (
     init_offline_db,
@@ -344,11 +344,15 @@ async def login_page():
 @web.post("/api/login")
 async def api_login(request: Request):
     try:
+        ip = request.headers.get("X-Forwarded-For", request.client.host).split(",")[0].strip() if request.client else "unknown"
+        if not rate_limiter.check(ip):
+            return JSONResponse(status_code=429, content={"error": "Demasiados intentos. Intente más tarde."})
         body = await request.json()
         password = body.get("password", "")
-        token = verify_password(password)
+        token = verify_password(password, ip)
         if token:
             return {"token": token}
+        rate_limiter.record_failure(ip)
         return JSONResponse(status_code=401, content={"error": "Invalid password"})
     except Exception as e:
         logger.error("Login error: %s", e)
