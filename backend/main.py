@@ -61,6 +61,7 @@ UNPROTECTED_PATHS = [
     "/app-music/", "/app-music/static/", "/app-music/privacy", "/app-music/terms",
     "/app-music/login", "/app-music/api/login",
     "/api/offline/tasks/", "/api/offline/downloader/",
+    "/web-player/", "/web-player/static/",
 ]
 
 
@@ -306,7 +307,7 @@ async function login() {
     });
     const data = await res.json();
     if (data.token) {
-      document.cookie = 'token=' + data.token + '; path=/app-music; max-age=86400; SameSite=Lax';
+      document.cookie = 'token=' + data.token + '; path=/; max-age=86400; SameSite=Lax';
       window.location.href = '/app-music/';
     } else {
       err.textContent = 'Contrasena incorrecta';
