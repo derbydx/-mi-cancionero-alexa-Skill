@@ -57,7 +57,7 @@ _verifiers = [RequestVerifier(), TimestampVerifier()]
 # ── Auth middleware ─────────────────────────────────────────────────────────
 
 UNPROTECTED_PATHS = [
-    "/alexa", "/proxy/audio/", "/health",
+    "/", "/alexa", "/proxy/audio/", "/health",
     "/app-music/", "/app-music/static/", "/app-music/privacy", "/app-music/terms",
     "/app-music/login", "/app-music/api/login",
     "/api/offline/tasks/", "/api/offline/downloader/",
@@ -243,11 +243,15 @@ async def api_offline_downloader_set_paused_root(request: Request):
         return JSONResponse(status_code=400, content={"error": str(e)})
 
 
-# ── Redirect root → /app-music ──────────────────────────────────────────────
+# ── Landing page ─────────────────────────────────────────────────────────
 
 @app.get("/")
-async def root_redirect():
-    return RedirectResponse(url="/app-music/")
+async def landing():
+    path = os.path.join(static_dir, "landing.html")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content="<h1>Mis Proyectos</h1><p>Landing page no encontrada.</p>")
 
 
 # ── Static files ────────────────────────────────────────────────────────────
